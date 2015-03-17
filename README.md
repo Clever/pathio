@@ -30,7 +30,7 @@ local file path or an S3 path.
 func Write(path string, input []byte) error
 ```
 Write writes a byte array to the specified path. The path can be either a local
-file path of an S3 path.
+file path or an S3 path.
 
 #### func  WriteReader
 
