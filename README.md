@@ -1,6 +1,6 @@
 # pathio
 --
-    import "gopkg.in/clever/pathio.v1"
+    import "gopkg.in/Clever/pathio.v1"
 
 Package pathio is a package that allows writing to and reading from different
 types of paths transparently. It supports two types of paths:
