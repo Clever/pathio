@@ -19,10 +19,10 @@ Note that using s3 paths requires setting three environment variables
 #### func  Reader
 
 ```go
-func Reader(path string) (io.Reader, error)
+func Reader(path string) (rc io.ReadCloser, err error)
 ```
 Reader returns an io.Reader for the specified path. The path can either be a
-local file path or an S3 path.
+local file path or an S3 path. It is the caller's responsibility to close rc.
 
 #### func  Write
 
