@@ -33,7 +33,7 @@ func Reader(path string) (rc io.ReadCloser, err error) {
 	return os.Open(path)
 }
 
-// Write writes a byte array to the specified path. The path can be either a local file path of an
+// Write writes a byte array to the specified path. The path can be either a local file path or an
 // S3 path.
 func Write(path string, input []byte) error {
 	return WriteReader(path, bytes.NewReader(input), int64(len(input)))
