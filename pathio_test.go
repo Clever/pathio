@@ -53,12 +53,3 @@ func TestWriteToFilePath(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "testout", string(output))
 }
-
-func TestRegion(t *testing.T) {
-	regionObj, err := region("us-west-1")
-	assert.Nil(t, err)
-	assert.Equal(t, regionObj.EC2Endpoint, "https://ec2.us-west-1.amazonaws.com")
-
-	regionObj, err = region("BadRegion")
-	assert.NotNil(t, err)
-}

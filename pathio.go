@@ -4,10 +4,9 @@ It supports two types of paths:
  1. Local file paths
  2. S3 File Paths (s3://bucket/key)
 
-Note that using s3 paths requires setting three environment variables
+Note that using s3 paths requires setting two environment variables
  1. AWS_SECRET_ACCESS_KEY
  2. AWS_ACCESS_KEY_ID
- 3. AWS_REGION
 */
 package pathio
 
@@ -15,12 +14,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
-	"github.com/mitchellh/goamz/aws"
-	"github.com/mitchellh/goamz/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 // Reader returns an io.Reader for the specified path. The path can either be a local file path
@@ -36,14 +34,14 @@ func Reader(path string) (rc io.ReadCloser, err error) {
 // Write writes a byte array to the specified path. The path can be either a local file path or an
 // S3 path.
 func Write(path string, input []byte) error {
-	return WriteReader(path, bytes.NewReader(input), int64(len(input)))
+	return WriteReader(path, bytes.NewReader(input))
 }
 
 // WriteReader writes all the data read from the specified io.Reader to the
 // output path. The path can either a local file path or an S3 path.
-func WriteReader(path string, input io.Reader, length int64) error {
+func WriteReader(path string, input io.ReadSeeker) error {
 	if strings.HasPrefix(path, "s3://") {
-		return writeToS3(path, input, length)
+		return writeToS3(path, input)
 	}
 	return writeToLocalFile(path, input)
 
@@ -51,15 +49,56 @@ func WriteReader(path string, input io.Reader, length int64) error {
 
 // s3FileReader converts an S3Path into an io.ReadCloser
 func s3FileReader(path string) (io.ReadCloser, error) {
-	bucket, key, err := getS3BucketAndKey(path)
+	bucket, key, err := parseS3Path(path)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Getting from s3: %s", key)
-	return bucket.GetReader(key)
+
+	// Look up region in S3
+	region, err := getRegionForBucket(bucket)
+	if err != nil {
+		return nil, err
+	}
+	config := aws.NewConfig().WithRegion(region)
+
+	client := s3.New(config)
+	params := s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+	resp, err := client.GetObject(&params)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
 }
 
-func writeToLocalFile(path string, input io.Reader) error {
+// writeToS3 uploads the given file to S3
+func writeToS3(path string, input io.ReadSeeker) error {
+	bucket, key, err := parseS3Path(path)
+	if err != nil {
+		return err
+	}
+
+	// Look up region in S3
+	region, nil := getRegionForBucket(bucket)
+	if err != nil {
+		return err
+	}
+	config := aws.NewConfig().WithRegion(region)
+
+	client := s3.New(config)
+	params := s3.PutObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   input,
+	}
+	_, err = client.PutObject(&params)
+	return err
+}
+
+// writeToLocalFile writes the given file locally
+func writeToLocalFile(path string, input io.ReadSeeker) error {
 	file, err := os.Create(path)
 	defer file.Close()
 	if err != nil {
@@ -67,41 +106,6 @@ func writeToLocalFile(path string, input io.Reader) error {
 	}
 	_, err = io.Copy(file, input)
 	return err
-
-}
-
-func writeToS3(path string, input io.Reader, length int64) error {
-	bucket, key, err := getS3BucketAndKey(path)
-	if err != nil {
-		return err
-	}
-	log.Printf("Writing to s3: %s", key)
-	return bucket.PutReader(key, input, length, "text/plain", s3.Private)
-}
-
-// getS3BucketAndKey takes in a full s3path (s3://bucket/key) and returns a bucket,
-// key, error tuple. It assumes that AWS environment variables are set.
-func getS3BucketAndKey(path string) (*s3.Bucket, string, error) {
-	auth, err := aws.EnvAuth()
-	if err != nil {
-		log.Print("AWS environment variables not set")
-		return nil, "", err
-	}
-
-	region, err := region(os.Getenv("AWS_REGION"))
-	// This is a HACK, but the S3 library we use doesn't support redirections from Amazon, so when
-	// we make a request to https://s3-us-west-1.amazonaws.com and Amazon returns a 301 redirecting
-	// to https://s3.amazonaws.com the library blows up.
-	region.S3Endpoint = "https://s3.amazonaws.com"
-	if err != nil {
-		return nil, "", err
-	}
-	s := s3.New(auth, region)
-	bucketName, key, err := parseS3Path(path)
-	if err != nil {
-		return nil, "", err
-	}
-	return s.Bucket(bucketName), key, err
 }
 
 // parseS3path parses an S3 path (s3://bucket/key) and returns a bucket, key, error tuple
@@ -117,12 +121,22 @@ func parseS3Path(path string) (string, string, error) {
 	return bucketName, key, nil
 }
 
-// getRegion converts a region name into an aws.Region object
-func region(regionString string) (aws.Region, error) {
-	for name, region := range aws.Regions {
-		if strings.ToLower(name) == strings.ToLower(regionString) {
-			return region, nil
-		}
+// getRegionForBucket looks up the region name for the given bucket
+func getRegionForBucket(name string) (string, error) {
+	// Any region will work for the region lookup, but the request MUST use
+	// PathStyle
+	config := aws.NewConfig().WithRegion("us-west-1").WithS3ForcePathStyle(true)
+	client := s3.New(config)
+	params := s3.GetBucketLocationInput{
+		Bucket: aws.String(name),
 	}
-	return aws.Region{}, fmt.Errorf("Unknown region %s: ", regionString)
+	resp, err := client.GetBucketLocation(&params)
+	if err != nil {
+		return "", fmt.Errorf("Failed to get location for bucket '%s', %s", name, err)
+	}
+	if resp.LocationConstraint == nil {
+		// "US Standard", returns an empty region. So return any region in the US
+		return "us-east-1", nil
+	}
+	return *resp.LocationConstraint, nil
 }

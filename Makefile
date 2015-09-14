@@ -8,6 +8,10 @@ READMES = $(addsuffix /README.md, $(PKGS))
 golint:
 	@go get github.com/golang/lint/golint
 
+bin: $(PKGS)
+	@go get ./cmd/
+	@go build -o p3 cmd/p3.go
+
 test: $(PKGS)
 docs: $(READMES)
 %/README.md:
