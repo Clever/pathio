@@ -11,47 +11,47 @@
 		},
 		{
 			"ImportPath": "github.com/alecthomas/units",
-			"Rev": "6b4e7dc5e3143b85ea77909c72caf89416fc2915"
+			"Rev": "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/aws",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/endpoints",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/endpoints",
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/query",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/query",
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/rest",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/rest",
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/restxml",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/restxml",
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/xml/xmlutil",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil",
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/signer/v4",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/signer/v4",
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/s3",
-			"Comment": "v0.9.11",
-			"Rev": "890e878e1bf2abba2e0c33e494daf3ca55b2e563"
+			"Comment": "v0.9.17",
+			"Rev": "1481c919816453abc15fbe2cd6e071dfc2f188a0"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
@@ -63,8 +63,8 @@
 		},
 		{
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
-			"Comment": "v2.1.0",
-			"Rev": "72bf19f454c6822cfb2cf128c77ef8d70667df35"
+			"Comment": "v2.1.3",
+			"Rev": "aef28d186e59d39ed537473dfce4472108ea1045"
 		}
 	]
 }
