@@ -2,8 +2,8 @@
 // requests and responses.
 package restxml
 
-//go:generate go run ../../fixtures/protocol/generate.go ../../fixtures/protocol/input/rest-xml.json build_test.go
-//go:generate go run ../../fixtures/protocol/generate.go ../../fixtures/protocol/output/rest-xml.json unmarshal_test.go
+//go:generate go run ../../../models/protocol_tests/generate.go ../../../models/protocol_tests/input/rest-xml.json build_test.go
+//go:generate go run ../../../models/protocol_tests/generate.go ../../../models/protocol_tests/output/rest-xml.json unmarshal_test.go
 
 import (
 	"bytes"
@@ -11,9 +11,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/internal/protocol/query"
-	"github.com/aws/aws-sdk-go/internal/protocol/rest"
-	"github.com/aws/aws-sdk-go/internal/protocol/xml/xmlutil"
+	"github.com/aws/aws-sdk-go/private/protocol/query"
+	"github.com/aws/aws-sdk-go/private/protocol/rest"
+	"github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil"
 )
 
 // Build builds a request payload for the REST XML protocol.
