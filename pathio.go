@@ -55,7 +55,7 @@ func s3FileReader(path string) (io.ReadCloser, error) {
 	}
 
 	// Look up region in S3
-	region, err := getRegionForBucket(getS3Api(), bucket)
+	region, err := getRegionForBucket(newS3Handler(), bucket)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func writeToS3(path string, input io.ReadSeeker) error {
 	}
 
 	// Look up region in S3
-	region, nil := getRegionForBucket(getS3Api(), bucket)
+	region, nil := getRegionForBucket(newS3Handler(), bucket)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func parseS3Path(path string) (string, string, error) {
 }
 
 // getRegionForBucket looks up the region name for the given bucket
-func getRegionForBucket(svc s3Api, name string) (string, error) {
+func getRegionForBucket(svc s3Handler, name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
 	params := s3.GetBucketLocationInput{
@@ -139,22 +139,19 @@ func getRegionForBucket(svc s3Api, name string) (string, error) {
 	return *resp.LocationConstraint, nil
 }
 
-type s3Api interface {
+type s3Handler interface {
 	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
 }
 
-type liveS3Api struct {
+type liveS3Handler struct {
 	liveS3 *s3.S3
 }
 
-func (m *liveS3Api) GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
+func (m *liveS3Handler) GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
 	return m.liveS3.GetBucketLocation(input)
 }
 
-func getS3Api() *liveS3Api {
+func newS3Handler() *liveS3Handler {
 	config := aws.NewConfig().WithRegion("us-west-1").WithS3ForcePathStyle(true)
-	s3 := s3.New(config)
-	impl := new(liveS3Api)
-	impl.liveS3 = s3
-	return impl
+	return &liveS3Handler{s3.New(config)}
 }
