@@ -22,11 +22,23 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+const defaultLocation = "us-west-1"
+
+type s3Connection struct {
+	handler s3Handler
+	bucket  string
+	key     string
+}
+
 // Reader returns an io.Reader for the specified path. The path can either be a local file path
 // or an S3 path. It is the caller's responsibility to close rc.
 func Reader(path string) (rc io.ReadCloser, err error) {
 	if strings.HasPrefix(path, "s3://") {
-		return s3FileReader(path)
+		s3Conn, err := s3ConnectionInformation(path)
+		if err != nil {
+			return nil, err
+		}
+		return s3FileReader(s3Conn)
 	}
 	// Local file path
 	return os.Open(path)
@@ -42,33 +54,22 @@ func Write(path string, input []byte) error {
 // output path. The path can either a local file path or an S3 path.
 func WriteReader(path string, input io.ReadSeeker) error {
 	if strings.HasPrefix(path, "s3://") {
-		return writeToS3(path, input)
+		s3Conn, err := s3ConnectionInformation(path)
+		if err != nil {
+			return err
+		}
+		return writeToS3(s3Conn, input)
 	}
 	return writeToLocalFile(path, input)
-
 }
 
 // s3FileReader converts an S3Path into an io.ReadCloser
-func s3FileReader(path string) (io.ReadCloser, error) {
-	bucket, key, err := parseS3Path(path)
-	if err != nil {
-		return nil, err
-	}
-
-	// Look up region in S3
-	region, err := getRegionForBucket(bucket)
-	if err != nil {
-		return nil, err
-	}
-	config := aws.NewConfig().WithRegion(region)
-
-	sess := session.New()
-	client := s3.New(sess, config)
+func s3FileReader(s3Conn s3Connection) (io.ReadCloser, error) {
 	params := s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
+		Bucket: aws.String(s3Conn.bucket),
+		Key:    aws.String(s3Conn.key),
 	}
-	resp, err := client.GetObject(&params)
+	resp, err := s3Conn.handler.GetObject(&params)
 	if err != nil {
 		return nil, err
 	}
@@ -76,27 +77,13 @@ func s3FileReader(path string) (io.ReadCloser, error) {
 }
 
 // writeToS3 uploads the given file to S3
-func writeToS3(path string, input io.ReadSeeker) error {
-	bucket, key, err := parseS3Path(path)
-	if err != nil {
-		return err
-	}
-
-	// Look up region in S3
-	region, nil := getRegionForBucket(bucket)
-	if err != nil {
-		return err
-	}
-	config := aws.NewConfig().WithRegion(region)
-
-	sess := session.New()
-	client := s3.New(sess, config)
+func writeToS3(s3Conn s3Connection, input io.ReadSeeker) error {
 	params := s3.PutObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
+		Bucket: aws.String(s3Conn.bucket),
+		Key:    aws.String(s3Conn.key),
 		Body:   input,
 	}
-	_, err = client.PutObject(&params)
+	_, err := s3Conn.handler.PutObject(&params)
 	return err
 }
 
@@ -124,23 +111,65 @@ func parseS3Path(path string) (string, string, error) {
 	return bucketName, key, nil
 }
 
+// s3ConnectionInformation parses the s3 path and returns the s3 connection from the
+// correct region, as well as the bucket, and key
+func s3ConnectionInformation(path string) (s3Connection, error) {
+	bucket, key, err := parseS3Path(path)
+	if err != nil {
+		return s3Connection{}, err
+	}
+
+	// Look up region in S3
+	region, err := getRegionForBucket(newS3Handler(defaultLocation), bucket)
+	if err != nil {
+		return s3Connection{}, err
+	}
+
+	return s3Connection{newS3Handler(region), bucket, key}, nil
+}
+
 // getRegionForBucket looks up the region name for the given bucket
-func getRegionForBucket(name string) (string, error) {
+func getRegionForBucket(svc s3Handler, name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
-	config := aws.NewConfig().WithRegion("us-west-1").WithS3ForcePathStyle(true)
-	sess := session.New()
-	client := s3.New(sess, config)
 	params := s3.GetBucketLocationInput{
 		Bucket: aws.String(name),
 	}
-	resp, err := client.GetBucketLocation(&params)
+	resp, err := svc.GetBucketLocation(&params)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get location for bucket '%s', %s", name, err)
 	}
 	if resp.LocationConstraint == nil {
 		// "US Standard", returns an empty region. So return any region in the US
-		return "us-east-1", nil
+		return defaultLocation, nil
 	}
 	return *resp.LocationConstraint, nil
+}
+
+type s3Handler interface {
+	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
+	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
+	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
+}
+
+type liveS3Handler struct {
+	liveS3 *s3.S3
+}
+
+func (m *liveS3Handler) GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
+	return m.liveS3.GetBucketLocation(input)
+}
+
+func (m *liveS3Handler) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
+	return m.liveS3.GetObject(input)
+}
+
+func (m *liveS3Handler) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	return m.liveS3.PutObject(input)
+}
+
+func newS3Handler(region string) *liveS3Handler {
+	config := aws.NewConfig().WithRegion(region).WithS3ForcePathStyle(true)
+	session := session.New()
+	return &liveS3Handler{s3.New(session, config)}
 }
