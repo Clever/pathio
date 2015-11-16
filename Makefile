@@ -3,7 +3,7 @@ PKG = github.com/Clever/pathio
 PKGS := $(PKG) github.com/Clever/pathio/cmd
 READMES = $(addsuffix /README.md, $(PKGS))
 
-.PHONY: test golint README
+.PHONY: test golint README vendor
 
 GOVERSION := $(shell go version | grep 1.5)
 ifeq "$(GOVERSION)" ""
