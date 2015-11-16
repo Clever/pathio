@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
@@ -61,7 +62,8 @@ func s3FileReader(path string) (io.ReadCloser, error) {
 	}
 	config := aws.NewConfig().WithRegion(region)
 
-	client := s3.New(config)
+	sess := session.New()
+	client := s3.New(sess, config)
 	params := s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -87,7 +89,8 @@ func writeToS3(path string, input io.ReadSeeker) error {
 	}
 	config := aws.NewConfig().WithRegion(region)
 
-	client := s3.New(config)
+	sess := session.New()
+	client := s3.New(sess, config)
 	params := s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -126,7 +129,8 @@ func getRegionForBucket(name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
 	config := aws.NewConfig().WithRegion("us-west-1").WithS3ForcePathStyle(true)
-	client := s3.New(config)
+	sess := session.New()
+	client := s3.New(sess, config)
 	params := s3.GetBucketLocationInput{
 		Bucket: aws.String(name),
 	}
