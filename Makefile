@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 PKG = github.com/Clever/pathio
-PKGS := $(PKG)
+PKGS := $(PKG) github.com/Clever/pathio/cmd
 READMES = $(addsuffix /README.md, $(PKGS))
 
 .PHONY: test golint README
@@ -36,3 +36,12 @@ else
 	@echo "TESTING..."
 	@go test $@ -test.v
 endif
+
+GODEP=$(GOPATH)/bin/godep
+
+$(GODEP):
+	@go get -u github.com/tools/godep
+
+vendor: $(GODEP)
+	$(GODEP) save $(PKGS)
+	find vendor/ -path '*/vendor' -type d | xargs -IX rm -r X # remove any nested vendor directories
