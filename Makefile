@@ -1,9 +1,9 @@
 SHELL := /bin/bash
 PKG = github.com/Clever/pathio
-PKGS := $(PKG) github.com/Clever/pathio/cmd
+PKGS := $(PKG)
 READMES = $(addsuffix /README.md, $(PKGS))
 
-.PHONY: test golint README vendor
+.PHONY: test golint README
 
 GOVERSION := $(shell go version | grep 1.5)
 ifeq "$(GOVERSION)" ""
@@ -25,6 +25,7 @@ docs: $(READMES)
 	@$(GOPATH)/bin/godocdown $(shell dirname $@) > $(GOPATH)/src/$@
 
 $(PKGS): golint docs
+	@go get -d -t $@
 	@gofmt -w=true $(GOPATH)/src/$@*/**.go
 	@echo "LINTING..."
 	@PATH=$(PATH):$(GOPATH)/bin golint $(GOPATH)/src/$@*/**.go
@@ -36,12 +37,3 @@ else
 	@echo "TESTING..."
 	@go test $@ -test.v
 endif
-
-GODEP=$(GOPATH)/bin/godep
-
-$(GODEP):
-	@go get -u github.com/tools/godep
-
-vendor: $(GODEP)
-	$(GODEP) save $(PKGS)
-	find vendor/ -path '*/vendor' -type d | xargs -IX rm -r X # remove any nested vendor directories
