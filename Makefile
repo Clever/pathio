@@ -25,6 +25,7 @@ docs: $(READMES)
 	@$(GOPATH)/bin/godocdown $(shell dirname $@) > $(GOPATH)/src/$@
 
 $(PKGS): golint docs
+	@go get -d -t $@
 	@gofmt -w=true $(GOPATH)/src/$@*/**.go
 	@echo "LINTING..."
 	@PATH=$(PATH):$(GOPATH)/bin golint $(GOPATH)/src/$@*/**.go
