@@ -23,6 +23,34 @@ import (
 )
 
 const defaultLocation = "us-west-1"
+const aesAlgo = "AES256"
+
+// Client is the pathio client used to access the local file system and S3. It
+// includes an option to disable S3 encryption. To disable S3 encryption, create
+// a new Client and call it directly:
+// `&Client{disableS3Encryption: true}.Write(...)`
+type Client struct {
+	disableS3Encryption bool
+}
+
+// DefaultClient is the default pathio client called by the Reader, Writer, and
+// WriteReader methods. It has S3 encryption enabled.
+var DefaultClient = &Client{}
+
+// Reader Calls DefaultClient's Reader method.
+func Reader(path string) (rc io.ReadCloser, err error) {
+	return DefaultClient.Reader(path)
+}
+
+// Write Calls DefaultClient's Write method.
+func Write(path string, input []byte) error {
+	return DefaultClient.Write(path, input)
+}
+
+// WriteReader Calls DefaultClient's WriteReader method.
+func WriteReader(path string, input io.ReadSeeker) error {
+	return DefaultClient.WriteReader(path, input)
+}
 
 type s3Connection struct {
 	handler s3Handler
@@ -32,7 +60,7 @@ type s3Connection struct {
 
 // Reader returns an io.Reader for the specified path. The path can either be a local file path
 // or an S3 path. It is the caller's responsibility to close rc.
-func Reader(path string) (rc io.ReadCloser, err error) {
+func (c *Client) Reader(path string) (rc io.ReadCloser, err error) {
 	if strings.HasPrefix(path, "s3://") {
 		s3Conn, err := s3ConnectionInformation(path)
 		if err != nil {
@@ -46,19 +74,19 @@ func Reader(path string) (rc io.ReadCloser, err error) {
 
 // Write writes a byte array to the specified path. The path can be either a local file path or an
 // S3 path.
-func Write(path string, input []byte) error {
-	return WriteReader(path, bytes.NewReader(input))
+func (c *Client) Write(path string, input []byte) error {
+	return c.WriteReader(path, bytes.NewReader(input))
 }
 
 // WriteReader writes all the data read from the specified io.Reader to the
 // output path. The path can either a local file path or an S3 path.
-func WriteReader(path string, input io.ReadSeeker) error {
+func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 	if strings.HasPrefix(path, "s3://") {
 		s3Conn, err := s3ConnectionInformation(path)
 		if err != nil {
 			return err
 		}
-		return writeToS3(s3Conn, input)
+		return writeToS3(s3Conn, input, c.disableS3Encryption)
 	}
 	return writeToLocalFile(path, input)
 }
@@ -77,11 +105,15 @@ func s3FileReader(s3Conn s3Connection) (io.ReadCloser, error) {
 }
 
 // writeToS3 uploads the given file to S3
-func writeToS3(s3Conn s3Connection, input io.ReadSeeker) error {
+func writeToS3(s3Conn s3Connection, input io.ReadSeeker, disableEncryption bool) error {
 	params := s3.PutObjectInput{
 		Bucket: aws.String(s3Conn.bucket),
 		Key:    aws.String(s3Conn.key),
 		Body:   input,
+	}
+	if !disableEncryption {
+		algo := aesAlgo
+		params.ServerSideEncryption = &algo
 	}
 	_, err := s3Conn.handler.PutObject(&params)
 	return err

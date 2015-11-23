@@ -147,12 +147,13 @@ func TestS3FileWriterSuccess(t *testing.T) {
 	input := bytes.NewReader(make([]byte, 0))
 	output := s3.PutObjectOutput{}
 	params := s3.PutObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-		Body:   input,
+		Bucket:               aws.String(bucket),
+		Key:                  aws.String(key),
+		Body:                 input,
+		ServerSideEncryption: aws.String("AES256"),
 	}
 	svc.On("PutObject", &params).Return(&output, nil)
-	foundErr := writeToS3(s3Connection{&svc, bucket, key}, input)
+	foundErr := writeToS3(s3Connection{&svc, bucket, key}, input, false)
 	assert.Equal(t, foundErr, nil)
 	svc.AssertExpectations(t)
 }
@@ -163,12 +164,29 @@ func TestS3FileWriterError(t *testing.T) {
 	input := bytes.NewReader(make([]byte, 0))
 	output := s3.PutObjectOutput{}
 	params := s3.PutObjectInput{
+		Bucket:               aws.String(bucket),
+		Key:                  aws.String(key),
+		Body:                 input,
+		ServerSideEncryption: aws.String("AES256"),
+	}
+	svc.On("PutObject", &params).Return(&output, errors.New(err))
+	foundErr := writeToS3(s3Connection{&svc, bucket, key}, input, false)
+	assert.Equal(t, foundErr.Error(), err)
+	svc.AssertExpectations(t)
+}
+
+func TestS3FileWriterSuccessNoEncryption(t *testing.T) {
+	svc := mockedS3Client{}
+	bucket, key := "bucket", "key"
+	input := bytes.NewReader(make([]byte, 0))
+	output := s3.PutObjectOutput{}
+	params := s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 		Body:   input,
 	}
-	svc.On("PutObject", &params).Return(&output, errors.New(err))
-	foundErr := writeToS3(s3Connection{&svc, bucket, key}, input)
-	assert.Equal(t, foundErr.Error(), err)
+	svc.On("PutObject", &params).Return(&output, nil)
+	foundErr := writeToS3(s3Connection{&svc, bucket, key}, input, true)
+	assert.Equal(t, foundErr, nil)
 	svc.AssertExpectations(t)
 }
