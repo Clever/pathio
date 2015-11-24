@@ -22,20 +22,29 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-const defaultLocation = "us-west-1"
-const aesAlgo = "AES256"
+const (
+	defaultLocation = "us-west-1"
+	aesAlgo         = "AES256"
+)
 
-// Client is the pathio client used to access the local file system and S3. It
+// Client is the interface exposed by pathio to both S3 and the filesystem.
+type Client interface {
+	Write(path string, input []byte) error
+	Reader(path string) (rc io.ReadCloser, err error)
+	WriteReader(path string, input io.ReadSeeker) error
+}
+
+// AWSClient is the pathio client used to access the local file system and S3. It
 // includes an option to disable S3 encryption. To disable S3 encryption, create
 // a new Client and call it directly:
-// `&Client{disableS3Encryption: true}.Write(...)`
-type Client struct {
+// `&AWSClient{disableS3Encryption: true}.Write(...)`
+type AWSClient struct {
 	disableS3Encryption bool
 }
 
 // DefaultClient is the default pathio client called by the Reader, Writer, and
 // WriteReader methods. It has S3 encryption enabled.
-var DefaultClient = &Client{}
+var DefaultClient Client = &AWSClient{}
 
 // Reader Calls DefaultClient's Reader method.
 func Reader(path string) (rc io.ReadCloser, err error) {
@@ -60,7 +69,7 @@ type s3Connection struct {
 
 // Reader returns an io.Reader for the specified path. The path can either be a local file path
 // or an S3 path. It is the caller's responsibility to close rc.
-func (c *Client) Reader(path string) (rc io.ReadCloser, err error) {
+func (c *AWSClient) Reader(path string) (rc io.ReadCloser, err error) {
 	if strings.HasPrefix(path, "s3://") {
 		s3Conn, err := s3ConnectionInformation(path)
 		if err != nil {
@@ -74,13 +83,13 @@ func (c *Client) Reader(path string) (rc io.ReadCloser, err error) {
 
 // Write writes a byte array to the specified path. The path can be either a local file path or an
 // S3 path.
-func (c *Client) Write(path string, input []byte) error {
+func (c *AWSClient) Write(path string, input []byte) error {
 	return c.WriteReader(path, bytes.NewReader(input))
 }
 
 // WriteReader writes all the data read from the specified io.Reader to the
 // output path. The path can either a local file path or an S3 path.
-func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
+func (c *AWSClient) WriteReader(path string, input io.ReadSeeker) error {
 	if strings.HasPrefix(path, "s3://") {
 		s3Conn, err := s3ConnectionInformation(path)
 		if err != nil {
