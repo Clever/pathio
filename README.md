@@ -15,12 +15,6 @@ Note that using s3 paths requires setting two environment variables
 
 ## Usage
 
-```go
-var DefaultClient = &Client{}
-```
-DefaultClient is the default pathio client called by the Reader, Writer, and
-WriteReader methods. It has S3 encryption enabled.
-
 #### func  Reader
 
 ```go
@@ -42,37 +36,91 @@ func WriteReader(path string, input io.ReadSeeker) error
 ```
 WriteReader Calls DefaultClient's WriteReader method.
 
-#### type Client
+#### type AWSClient
 
 ```go
-type Client struct {
+type AWSClient struct {
 }
 ```
 
-Client is the pathio client used to access the local file system and S3. It
+AWSClient is the pathio client used to access the local file system and S3. It
 includes an option to disable S3 encryption. To disable S3 encryption, create a
-new Client and call it directly: `&Client{disableS3Encryption: true}.Write(...)`
+new Client and call it directly: `&AWSClient{disableS3Encryption:
+true}.Write(...)`
 
-#### func (*Client) Reader
+#### func (*AWSClient) Reader
 
 ```go
-func (c *Client) Reader(path string) (rc io.ReadCloser, err error)
+func (c *AWSClient) Reader(path string) (rc io.ReadCloser, err error)
 ```
 Reader returns an io.Reader for the specified path. The path can either be a
 local file path or an S3 path. It is the caller's responsibility to close rc.
 
-#### func (*Client) Write
+#### func (*AWSClient) Write
 
 ```go
-func (c *Client) Write(path string, input []byte) error
+func (c *AWSClient) Write(path string, input []byte) error
 ```
 Write writes a byte array to the specified path. The path can be either a local
 file path or an S3 path.
 
-#### func (*Client) WriteReader
+#### func (*AWSClient) WriteReader
 
 ```go
-func (c *Client) WriteReader(path string, input io.ReadSeeker) error
+func (c *AWSClient) WriteReader(path string, input io.ReadSeeker) error
 ```
 WriteReader writes all the data read from the specified io.Reader to the output
 path. The path can either a local file path or an S3 path.
+
+#### type Client
+
+```go
+type Client interface {
+	Write(path string, input []byte) error
+	Reader(path string) (rc io.ReadCloser, err error)
+	WriteReader(path string, input io.ReadSeeker) error
+}
+```
+
+Client is the interface exposed by pathio to both S3 and the filesystem.
+
+```go
+var DefaultClient Client = &AWSClient{}
+```
+DefaultClient is the default pathio client called by the Reader, Writer, and
+WriteReader methods. It has S3 encryption enabled.
+
+#### type MockClient
+
+```go
+type MockClient struct {
+	// Filesystem holds a theoretical S3 bucket for mocking puproses
+	Filesystem map[string]string
+	// These are errors that will be returned by the mocked methods if set
+	WriteErr, ReaderErr, WriteReaderErr error
+}
+```
+
+MockClient mocks out an S3 bucket
+
+#### func (*MockClient) Reader
+
+```go
+func (m *MockClient) Reader(path string) (rc io.ReadCloser, err error)
+```
+Reader returns MockClient.ReaderErr if set, otherwise reads from internal data.
+
+#### func (*MockClient) Write
+
+```go
+func (m *MockClient) Write(path string, input []byte) error
+```
+Write returns MockClient.WriteErr if set, otherwise stores the data internally.
+
+#### func (*MockClient) WriteReader
+
+```go
+func (m *MockClient) WriteReader(path string, input io.ReadSeeker) error
+```
+WriteReader returns MockClient.WriteReaderErr if set, otherwise stores the data
+internally.
