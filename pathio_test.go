@@ -96,7 +96,7 @@ func TestGetRegionForBucketDefault(t *testing.T) {
 	output := s3.GetBucketLocationOutput{LocationConstraint: nil}
 	svc.On("GetBucketLocation", mock.Anything).Return(&output, nil)
 	foundRegion, _ := getRegionForBucket(&svc, name)
-	assert.Equal(t, "us-west-1", foundRegion)
+	assert.Equal(t, "us-east-1", foundRegion)
 	svc.AssertExpectations(t)
 }
 

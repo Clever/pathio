@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-const defaultLocation = "us-west-1"
+const defaultLocation = "us-east-1"
 const aesAlgo = "AES256"
 
 // Client is the pathio client used to access the local file system and S3. It
@@ -172,7 +172,8 @@ func getRegionForBucket(svc s3Handler, name string) (string, error) {
 		return "", fmt.Errorf("Failed to get location for bucket '%s', %s", name, err)
 	}
 	if resp.LocationConstraint == nil {
-		// "US Standard", returns an empty region. So return any region in the US
+		// "US Standard", returns an empty region, which means us-east-1
+		// See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETlocation.html
 		return defaultLocation, nil
 	}
 	return *resp.LocationConstraint, nil
