@@ -122,7 +122,7 @@ func writeToS3(s3Conn s3Connection, input io.ReadSeeker, disableEncryption bool)
 
 // writeToLocalFile writes the given file locally
 func writeToLocalFile(path string, input io.ReadSeeker) error {
-	if err := os.MkdirAll(filepath.Dir(path), os.ModeDir); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 	file, err := os.Create(path)
