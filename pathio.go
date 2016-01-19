@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -121,6 +122,9 @@ func writeToS3(s3Conn s3Connection, input io.ReadSeeker, disableEncryption bool)
 
 // writeToLocalFile writes the given file locally
 func writeToLocalFile(path string, input io.ReadSeeker) error {
+	if err := os.MkdirAll(filepath.Dir(path), os.ModeDir); err != nil {
+		return err
+	}
 	file, err := os.Create(path)
 	defer file.Close()
 	if err != nil {
