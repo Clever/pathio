@@ -10,3 +10,4 @@ notify:
     webhook_url: $$slack_webhook
 script:
 - make test
+- make bin
