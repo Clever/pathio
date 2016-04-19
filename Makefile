@@ -5,7 +5,7 @@ include golang.mk
 SHELL := /bin/bash
 PKG = github.com/Clever/pathio
 PKGS := $(shell go list ./... | grep -v /vendor)
-$(eval $(call golang-version-check,1.5))
+$(eval $(call golang-version-check,1.6))
 
 bin: $(PKGS)
 	@go build -o p3 cmd/p3.go
