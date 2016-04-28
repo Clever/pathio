@@ -17,4 +17,4 @@ script:
 - mv `pwd` $GOPATH/src/gopkg.in/Clever/pathio.v3
 - cd $GOPATH/src/gopkg.in/Clever/pathio.v3
 - make test
-- make bin
+- make build
