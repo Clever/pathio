@@ -11,6 +11,6 @@ bin: $(PKGS)
 	@go build -o p3 cmd/p3.go
 
 test: $(PKGS)
-$(PKGS): golang-test-all-deps
+$(PKGS): golang-test-all-strict-deps
 	@go get -d -t $@
-	$(call golang-test-all,$@)
+	$(call golang-test-all-strict,$@)
