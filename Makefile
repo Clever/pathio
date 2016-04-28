@@ -2,7 +2,7 @@ include golang.mk
 .DEFAULT_GOAL := test # override default goal set in library makefile
 
 SHELL := /bin/bash
-PKG = github.com/Clever/pathio
+PKG = gopkg.in/Clever/pathio.v3
 PKGS := $(shell go list ./... | grep -v /vendor)
 $(eval $(call golang-version-check,1.6))
 .PHONY: build test
