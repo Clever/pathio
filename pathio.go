@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
 const defaultLocation = "us-east-1"
@@ -46,6 +47,91 @@ func Reader(path string) (rc io.ReadCloser, err error) {
 // Write Calls DefaultClient's Write method.
 func Write(path string, input []byte) error {
 	return DefaultClient.Write(path, input)
+}
+
+// Stream allows you to stream data directly to file via a reader.
+//
+// WARNING 1: Being that this function is async and somewhat tricky,
+// only use if it you know exactly what's happening.
+//
+// WARNING 2: The go routine does *not* return until the input reader is closed.
+//
+// The intended use case for this function is to create a direct stream to a path
+// via an io.Pipe() reader/writer. Everytime the writer writes, the reader has something to read.
+// Note, for an io.Pipe(), once you close the writer you also close the reader, they're
+// entagled objects.
+//
+// Example:
+//
+// func main() {
+// 	reader, writer := io.Pipe()
+// 	path := "some path"
+// 	var err *error
+// 	pathio.Stream(path, reader, err)
+// 	// generate stuff
+// 	writer.Write(stuff)
+// 	writer.Close()
+// 	if err != nil {
+// 		// Handle Error
+// 	}
+// }
+//
+// Note on error handling: Because the function is a Go routine, we implicitly
+// handle errors by having an error pointer passed in.
+func Stream(path string, input io.Reader, err *error) {
+	if strings.HasPrefix(path, "s3://") {
+		streamToS3(path, input, err)
+	} else {
+		streamToLocalFile(path, input, err)
+	}
+}
+
+// streamToS3 establishes an open stream to an s3 File
+func streamToS3(path string, input io.Reader, err *error) {
+	go func() {
+		s3Conn, connErr := s3ConnectionInformation(path)
+		if connErr != nil {
+			err = &connErr
+			return
+		}
+		upParams := &s3manager.UploadInput{
+			Bucket: aws.String(s3Conn.bucket),
+			Key:    aws.String(s3Conn.key),
+			Body:   input,
+		}
+
+		region, regionErr := getRegionForBucket(newS3Handler(defaultLocation), s3Conn.bucket)
+		if regionErr != nil {
+			err = &regionErr
+			return
+		}
+		config := aws.NewConfig().WithRegion(region).WithS3ForcePathStyle(true)
+		client := s3.New(session.New(), config)
+		uploader := s3manager.NewUploaderWithClient(client)
+		_, uploadErr := uploader.Upload(upParams)
+		if uploadErr != nil {
+			err = &uploadErr
+		}
+		return
+	}()
+}
+
+// streamToLocalFile establishes an open stream to a local file
+func streamToLocalFile(path string, input io.Reader, err *error) {
+	go func() {
+		// Open a file, if it doesn't exist create it.
+		var file *os.File
+		file, fileErr := os.Create(path)
+		if fileErr != nil {
+			err = &fileErr
+			return
+		}
+		_, copyErr := io.Copy(file, input)
+		if copyErr != nil {
+			err = &copyErr
+		}
+		return
+	}()
 }
 
 // WriteReader Calls DefaultClient's WriteReader method.
