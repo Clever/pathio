@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -189,4 +190,18 @@ func TestS3FileWriterSuccessNoEncryption(t *testing.T) {
 	foundErr := writeToS3(s3Connection{&svc, bucket, key}, input, true)
 	assert.Equal(t, foundErr, nil)
 	svc.AssertExpectations(t)
+}
+
+func TestStreamToLocalFile(t *testing.T) {
+	fileName := "stream_text.txt"
+	text := "Hello World"
+	r, w := io.Pipe()
+	var err *error
+	streamToLocalFile(fileName, r, err)
+	w.Write([]byte(text))
+	w.Close()
+	assert.Nil(t, err)
+	fileBytes, fileErr := ioutil.ReadFile(fileName)
+	assert.NoError(t, fileErr)
+	assert.Equal(t, string(fileBytes), text)
 }
