@@ -79,6 +79,11 @@ func (m *mockedS3Client) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutpu
 	return args.Get(0).(*s3.PutObjectOutput), args.Error(1)
 }
 
+func (m *mockedS3Client) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
+	args := m.Called(input)
+	return args.Get(0).(*s3.ListObjectsOutput), args.Error(1)
+}
+
 func TestGetRegionForBucketSuccess(t *testing.T) {
 	svc := mockedS3Client{}
 	name, region := "bucket", "region"
@@ -188,5 +193,80 @@ func TestS3FileWriterSuccessNoEncryption(t *testing.T) {
 	svc.On("PutObject", &params).Return(&output, nil)
 	foundErr := writeToS3(s3Connection{&svc, bucket, key}, input, true)
 	assert.Equal(t, foundErr, nil)
+	svc.AssertExpectations(t)
+}
+
+func TestS3ListFiles(t *testing.T) {
+	svc := mockedS3Client{}
+	bucket, key := "bucket", "key"
+	output := s3.ListObjectsOutput{
+		Contents: []*s3.Object{
+			&s3.Object{Key: aws.String("file1")},
+		},
+		CommonPrefixes: []*s3.CommonPrefix{
+			&s3.CommonPrefix{Prefix: aws.String("prefix/")},
+		},
+		IsTruncated: aws.Bool(false),
+	}
+
+	params := s3.ListObjectsInput{
+		Bucket:    aws.String(bucket),
+		Prefix:    aws.String(key),
+		Delimiter: aws.String("/"),
+	}
+
+	svc.On("ListObjects", &params).Return(&output, nil)
+	files, err := lsS3(s3Connection{&svc, bucket, key})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"prefix/", "file1"}, files)
+
+	svc.AssertExpectations(t)
+}
+
+func TestS3ListFilesRecurse(t *testing.T) {
+	svc := mockedS3Client{}
+	bucket, key := "bucket", "key"
+
+	output := []s3.ListObjectsOutput{
+		s3.ListObjectsOutput{
+			Contents: []*s3.Object{
+				&s3.Object{Key: aws.String("file1")},
+			},
+			CommonPrefixes: []*s3.CommonPrefix{
+				&s3.CommonPrefix{Prefix: aws.String("prefix/")},
+				&s3.CommonPrefix{Prefix: aws.String("prefix2/")},
+			},
+			IsTruncated: aws.Bool(true),
+		},
+		s3.ListObjectsOutput{
+			Contents: []*s3.Object{
+				&s3.Object{Key: aws.String("file2")},
+			},
+			CommonPrefixes: []*s3.CommonPrefix{
+				&s3.CommonPrefix{Prefix: aws.String("prefix2/")},
+			},
+			IsTruncated: aws.Bool(false),
+		},
+	}
+
+	params := []s3.ListObjectsInput{
+		s3.ListObjectsInput{
+			Bucket:    aws.String(bucket),
+			Prefix:    aws.String(key),
+			Delimiter: aws.String("/"),
+		},
+		s3.ListObjectsInput{
+			Bucket:    aws.String(bucket),
+			Prefix:    aws.String(key),
+			Delimiter: aws.String("/"),
+			Marker:    aws.String("file1"),
+		},
+	}
+
+	svc.On("ListObjects", &params[0]).Return(&output[0], nil)
+	svc.On("ListObjects", &params[1]).Return(&output[1], nil)
+	files, err := lsS3(s3Connection{&svc, bucket, key})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"prefix/", "prefix2/", "file1", "file2"}, files)
 	svc.AssertExpectations(t)
 }
