@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,19 +39,24 @@ type Client struct {
 // WriteReader methods. It has S3 encryption enabled.
 var DefaultClient = &Client{}
 
-// Reader Calls DefaultClient's Reader method.
+// Reader calls DefaultClient's Reader method.
 func Reader(path string) (rc io.ReadCloser, err error) {
 	return DefaultClient.Reader(path)
 }
 
-// Write Calls DefaultClient's Write method.
+// Write calls DefaultClient's Write method.
 func Write(path string, input []byte) error {
 	return DefaultClient.Write(path, input)
 }
 
-// WriteReader Calls DefaultClient's WriteReader method.
+// WriteReader calls DefaultClient's WriteReader method.
 func WriteReader(path string, input io.ReadSeeker) error {
 	return DefaultClient.WriteReader(path, input)
+}
+
+// ListFiles calls DefaultClient's ListFiles method.
+func ListFiles(path string) ([]string, error) {
+	return DefaultClient.ListFiles(path)
 }
 
 type s3Connection struct {
@@ -90,6 +96,76 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 		return writeToS3(s3Conn, input, c.disableS3Encryption)
 	}
 	return writeToLocalFile(path, input)
+}
+
+// ListFiles lists all the files/directories in the directory. It does not recurse
+func (c *Client) ListFiles(path string) ([]string, error) {
+	if strings.HasPrefix(path, "s3://") {
+		s3Conn, err := s3ConnectionInformation(path)
+		if err != nil {
+			return nil, err
+		}
+		return lsS3(s3Conn)
+	}
+	return lsLocal(path)
+}
+
+func lsS3(s3Conn s3Connection) ([]string, error) {
+	params := s3.ListObjectsInput{
+		Bucket:    aws.String(s3Conn.bucket),
+		Prefix:    aws.String(s3Conn.key),
+		Delimiter: aws.String("/"),
+	}
+	finalResults := []string{}
+
+	// s3 ListObjects limits the respose to 1000 objects and marks as truncated if there were more
+	// In this case we set a Marker that the next query will start from.
+	// We also ensure that prefixes are not duplicated
+	for {
+		resp, err := s3Conn.handler.ListObjects(&params)
+		if err != nil {
+			return nil, err
+		}
+		if len(resp.CommonPrefixes) > 0 && elementInSlice(finalResults, *resp.CommonPrefixes[0].Prefix) {
+			resp.CommonPrefixes = resp.CommonPrefixes[1:]
+		}
+		results := make([]string, len(resp.Contents)+len(resp.CommonPrefixes))
+		for i, val := range resp.CommonPrefixes {
+			results[i] = *val.Prefix
+		}
+		for i, val := range resp.Contents {
+			results[i+len(resp.CommonPrefixes)] = *val.Key
+		}
+		finalResults = append(finalResults, results...)
+
+		if *resp.IsTruncated {
+			params.Marker = aws.String(results[len(results)-1])
+		} else {
+			break
+		}
+	}
+	return finalResults, nil
+}
+
+func elementInSlice(slice []string, elem string) bool {
+	for _, v := range slice {
+		if elem == v {
+			return true
+		}
+	}
+	return false
+}
+
+func lsLocal(path string) ([]string, error) {
+	resp, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]string, len(resp))
+	for i, val := range resp {
+		results[i] = val.Name()
+	}
+	return results, nil
 }
 
 // s3FileReader converts an S3Path into an io.ReadCloser
@@ -187,6 +263,7 @@ type s3Handler interface {
 	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
 	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
+	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
 }
 
 type liveS3Handler struct {
@@ -203,6 +280,10 @@ func (m *liveS3Handler) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput
 
 func (m *liveS3Handler) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 	return m.liveS3.PutObject(input)
+}
+
+func (m *liveS3Handler) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
+	return m.liveS3.ListObjects(input)
 }
 
 func newS3Handler(region string) *liveS3Handler {
