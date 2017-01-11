@@ -39,7 +39,7 @@ err = pathio.Write("s3://bucket/my/key", toWrite)   // s3
 err = pathio.Write("/home/me/hello_world", toWrite) // local
 
 // func WriteReader(path string, input io.ReadSeeker) error
-toWriteReader, err := os.Open("test.txt") // this implements Write and Seek
+toWriteReader, err := os.Open("test.txt") // this implements Read and Seek
 err = pathio.WriteReader("s3://bucket/my/key", toWriteReader)   // s3
 err = pathio.WriteReader("/home/me/hello_world", toWriteReader) // local
 ```
