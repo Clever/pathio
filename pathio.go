@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -249,6 +250,13 @@ func getRegionForBucket(svc s3Handler, name string) (string, error) {
 	}
 	resp, err := svc.GetBucketLocation(&params)
 	if err != nil {
+		// If we get a 403 (i.e. we don't have access to the bucket), use the
+		// default region, since we may still have access to the objects in the
+		// bucket. If we don't, we'll still get a 403 when we want to access the
+		// objects, but there's no reason to give up and error out here prematurely.
+		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "AccessDenied" {
+			return defaultLocation, nil
+		}
 		return "", fmt.Errorf("Failed to get location for bucket '%s', %s", name, err)
 	}
 	if resp.LocationConstraint == nil {
