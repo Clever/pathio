@@ -27,12 +27,16 @@ import (
 const defaultLocation = "us-east-1"
 const aesAlgo = "AES256"
 
-// Client is the pathio client used to access the local file system and S3. It
-// includes an option to disable S3 encryption. To disable S3 encryption, create
-// a new Client and call it directly:
-// `&Client{disableS3Encryption: true}.Write(...)`
+// Client is the pathio client used to access the local file system and S3.
+// To configure options on the client, create a new Client and call its methods
+// directly.
+// `&Client{
+//		disableS3Encryption: true, // disables encryption
+//		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
+// }.Write(...)`
 type Client struct {
 	disableS3Encryption bool
+	Region              string
 }
 
 // DefaultClient is the default pathio client called by the Reader, Writer, and
@@ -69,7 +73,7 @@ type s3Connection struct {
 // or an S3 path. It is the caller's responsibility to close rc.
 func (c *Client) Reader(path string) (rc io.ReadCloser, err error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path)
+		s3Conn, err := s3ConnectionInformation(path, c.Region)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +93,7 @@ func (c *Client) Write(path string, input []byte) error {
 // output path. The path can either a local file path or an S3 path.
 func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path)
+		s3Conn, err := s3ConnectionInformation(path, c.Region)
 		if err != nil {
 			return err
 		}
@@ -101,7 +105,7 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 // ListFiles lists all the files/directories in the directory. It does not recurse
 func (c *Client) ListFiles(path string) ([]string, error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path)
+		s3Conn, err := s3ConnectionInformation(path, c.Region)
 		if err != nil {
 			return nil, err
 		}
@@ -225,16 +229,18 @@ func parseS3Path(path string) (string, string, error) {
 
 // s3ConnectionInformation parses the s3 path and returns the s3 connection from the
 // correct region, as well as the bucket, and key
-func s3ConnectionInformation(path string) (s3Connection, error) {
+func s3ConnectionInformation(path, region string) (s3Connection, error) {
 	bucket, key, err := parseS3Path(path)
 	if err != nil {
 		return s3Connection{}, err
 	}
 
-	// Look up region in S3
-	region, err := getRegionForBucket(newS3Handler(defaultLocation), bucket)
-	if err != nil {
-		return s3Connection{}, err
+	// If no region passed in, look up region in S3
+	if region == "" {
+		region, err = getRegionForBucket(newS3Handler(defaultLocation), bucket)
+		if err != nil {
+			return s3Connection{}, err
+		}
 	}
 
 	return s3Connection{newS3Handler(region), bucket, key}, nil
