@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -112,6 +113,44 @@ func (c *Client) ListFiles(path string) ([]string, error) {
 		return lsS3(s3Conn)
 	}
 	return lsLocal(path)
+}
+
+// Exists determines if a path does or does not exist.
+// NOTE: S3 is eventually consistent so keep in mind that there is a delay.
+func (c *Client) Exists(path string) (bool, error) {
+	if strings.HasPrefix(path, "s3://") {
+		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		if err != nil {
+			return false, err
+		}
+		return existsS3(s3Conn)
+	}
+	return false, nil
+}
+
+func existsS3(s3Conn s3Connection) (bool, error) {
+	_, err := s3Conn.handler.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(s3Conn.bucket),
+		Key:    aws.String(s3Conn.key),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchBucket, s3.ErrCodeNoSuchKey:
+				return false, nil
+			}
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func existsLocal(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func lsS3(s3Conn s3Connection) ([]string, error) {
@@ -270,6 +309,7 @@ type s3Handler interface {
 	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
+	HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
 }
 
 type liveS3Handler struct {
@@ -290,6 +330,10 @@ func (m *liveS3Handler) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput
 
 func (m *liveS3Handler) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
 	return m.liveS3.ListObjects(input)
+}
+
+func (m *liveS3Handler) HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {
+	return m.liveS3.HeadObject(input)
 }
 
 func newS3Handler(region string) *liveS3Handler {
