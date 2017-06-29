@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -132,11 +131,8 @@ func existsS3(s3Conn s3Connection) (bool, error) {
 		Key:    aws.String(s3Conn.key),
 	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket, s3.ErrCodeNoSuchKey:
-				return false, nil
-			}
+		if aerr, ok := err.(s3.RequestFailure); ok && aerr.StatusCode() == 404 {
+			return false, nil
 		}
 		return false, err
 	}
