@@ -1,13 +1,11 @@
-/*
-Package pathio is a package that allows writing to and reading from different types of paths transparently.
-It supports two types of paths:
- 1. Local file paths
- 2. S3 File Paths (s3://bucket/key)
-
-Note that using s3 paths requires setting two environment variables
- 1. AWS_SECRET_ACCESS_KEY
- 2. AWS_ACCESS_KEY_ID
-*/
+// Package pathio is a package that allows writing to and reading from different types of paths transparently.
+// It supports two types of paths:
+//  1. Local file paths
+//  2. S3 File Paths (s3://bucket/key)
+//
+// Note that using s3 paths requires setting two environment variables
+//  1. AWS_SECRET_ACCESS_KEY
+//  2. AWS_ACCESS_KEY_ID
 package pathio
 
 import (
@@ -112,6 +110,41 @@ func (c *Client) ListFiles(path string) ([]string, error) {
 		return lsS3(s3Conn)
 	}
 	return lsLocal(path)
+}
+
+// Exists determines if a path does or does not exist.
+// NOTE: S3 is eventually consistent so keep in mind that there is a delay.
+func (c *Client) Exists(path string) (bool, error) {
+	if strings.HasPrefix(path, "s3://") {
+		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		if err != nil {
+			return false, err
+		}
+		return existsS3(s3Conn)
+	}
+	return false, nil
+}
+
+func existsS3(s3Conn s3Connection) (bool, error) {
+	_, err := s3Conn.handler.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(s3Conn.bucket),
+		Key:    aws.String(s3Conn.key),
+	})
+	if err != nil {
+		if aerr, ok := err.(s3.RequestFailure); ok && aerr.StatusCode() == 404 {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func existsLocal(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func lsS3(s3Conn s3Connection) ([]string, error) {
@@ -265,11 +298,13 @@ func getRegionForBucket(svc s3Handler, name string) (string, error) {
 	return *resp.LocationConstraint, nil
 }
 
+//go:generate $GOPATH/bin/mockgen -source=$GOFILE -destination=gen_mock_s3handler.go -package=pathio
 type s3Handler interface {
 	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
 	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
+	HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
 }
 
 type liveS3Handler struct {
@@ -290,6 +325,10 @@ func (m *liveS3Handler) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput
 
 func (m *liveS3Handler) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
 	return m.liveS3.ListObjects(input)
+}
+
+func (m *liveS3Handler) HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {
+	return m.liveS3.HeadObject(input)
 }
 
 func newS3Handler(region string) *liveS3Handler {
