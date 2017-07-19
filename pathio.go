@@ -122,7 +122,7 @@ func (c *Client) Exists(path string) (bool, error) {
 		}
 		return existsS3(s3Conn)
 	}
-	return false, nil
+	return existsLocal(path)
 }
 
 func existsS3(s3Conn s3Connection) (bool, error) {
