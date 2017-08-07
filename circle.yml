@@ -16,3 +16,9 @@ test:
   - $HOME/ci-scripts/circleci/report-card $RC_DOCKER_USER $RC_DOCKER_PASS "$RC_DOCKER_EMAIL" $RC_GITHUB_TOKEN
 general:
   build_dir: ../.go_workspace/src/gopkg.in/Clever/pathio.v3
+deployment:
+  all:
+    branch: master
+    owner: Clever
+    commands:
+    - $HOME/ci-scripts/circleci/github-release $GH_RELEASE_TOKEN
