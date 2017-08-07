@@ -30,10 +30,14 @@ const aesAlgo = "AES256"
 // directly.
 // `&Client{
 //		disableS3Encryption: true, // disables encryption
+//    SetMaxRetry: true, // client will set a custom retry value
+//    MaxRetry: 3, // max number of retries to make in event of operation failure
 //		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
 // }.Write(...)`
 type Client struct {
 	disableS3Encryption bool
+	SetMaxRetry         bool // Need extra config var so we can default to -1, rather than 0
+	MaxRetry            int
 	Region              string
 }
 
@@ -67,11 +71,21 @@ type s3Connection struct {
 	key     string
 }
 
+func (c *Client) getMaxRetry() int {
+	// Can't just check for 0 because 0 is a valid value for MaxRetry
+	if c.SetMaxRetry {
+		return c.MaxRetry
+	}
+	// -1 defers the max retry setting to the service specific configuration.
+	// https://godoc.org/github.com/aws/aws-sdk-go/aws#Config
+	return -1
+}
+
 // Reader returns an io.Reader for the specified path. The path can either be a local file path
 // or an S3 path. It is the caller's responsibility to close rc.
 func (c *Client) Reader(path string) (rc io.ReadCloser, err error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := s3ConnectionInformation(path, c.Region, c.getMaxRetry())
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +105,7 @@ func (c *Client) Write(path string, input []byte) error {
 // output path. The path can either a local file path or an S3 path.
 func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := s3ConnectionInformation(path, c.Region, c.getMaxRetry())
 		if err != nil {
 			return err
 		}
@@ -103,7 +117,7 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 // ListFiles lists all the files/directories in the directory. It does not recurse
 func (c *Client) ListFiles(path string) ([]string, error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := s3ConnectionInformation(path, c.Region, c.getMaxRetry())
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +130,7 @@ func (c *Client) ListFiles(path string) ([]string, error) {
 // NOTE: S3 is eventually consistent so keep in mind that there is a delay.
 func (c *Client) Exists(path string) (bool, error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := s3ConnectionInformation(path, c.Region, c.getMaxRetry())
 		if err != nil {
 			return false, err
 		}
@@ -262,7 +276,7 @@ func parseS3Path(path string) (string, string, error) {
 
 // s3ConnectionInformation parses the s3 path and returns the s3 connection from the
 // correct region, as well as the bucket, and key
-func s3ConnectionInformation(path, region string) (s3Connection, error) {
+func s3ConnectionInformation(path, region string, maxRetry int) (s3Connection, error) {
 	bucket, key, err := parseS3Path(path)
 	if err != nil {
 		return s3Connection{}, err
@@ -270,13 +284,13 @@ func s3ConnectionInformation(path, region string) (s3Connection, error) {
 
 	// If no region passed in, look up region in S3
 	if region == "" {
-		region, err = getRegionForBucket(newS3Handler(defaultLocation), bucket)
+		region, err = getRegionForBucket(newS3Handler(defaultLocation, maxRetry), bucket)
 		if err != nil {
 			return s3Connection{}, err
 		}
 	}
 
-	return s3Connection{newS3Handler(region), bucket, key}, nil
+	return s3Connection{newS3Handler(region, maxRetry), bucket, key}, nil
 }
 
 // getRegionForBucket looks up the region name for the given bucket
@@ -331,8 +345,8 @@ func (m *liveS3Handler) HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOut
 	return m.liveS3.HeadObject(input)
 }
 
-func newS3Handler(region string) *liveS3Handler {
-	config := aws.NewConfig().WithRegion(region).WithS3ForcePathStyle(true)
+func newS3Handler(region string, maxRetry int) *liveS3Handler {
+	config := aws.NewConfig().WithRegion(region).WithMaxRetry(maxRetry).WithS3ForcePathStyle(true)
 	session := session.New()
 	return &liveS3Handler{s3.New(session, config)}
 }
