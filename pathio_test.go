@@ -63,11 +63,11 @@ func TestWriteToFilePath(t *testing.T) {
 func TestS3Calls(t *testing.T) {
 	testCases := []struct {
 		desc     string
-		testCase func(svc *Mocks3Handler, t *testing.T)
+		testCase func(svc *MockS3Handler, t *testing.T)
 	}{
 		{
 			desc: "GetRegionForBucketSuccess",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				name, region := "bucket", "region"
 				output := s3.GetBucketLocationOutput{LocationConstraint: aws.String(region)}
 				params := s3.GetBucketLocationInput{Bucket: aws.String(name)}
@@ -78,7 +78,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "GetRegionForBucketDefault",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				name := "bucket"
 				output := s3.GetBucketLocationOutput{LocationConstraint: nil}
 				svc.EXPECT().GetBucketLocation(gomock.Any()).Return(&output, nil)
@@ -88,7 +88,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "GetRegionForBucketError",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				name, err := "bucket", "Error!"
 				output := s3.GetBucketLocationOutput{LocationConstraint: nil}
 				svc.EXPECT().GetBucketLocation(gomock.Any()).Return(&output, errors.New(err))
@@ -98,7 +98,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "S3FileReaderSuccess",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				bucket, key, value := "bucket", "key", "value"
 				reader := ioutil.NopCloser(bytes.NewBuffer([]byte(value)))
 				output := s3.GetObjectOutput{Body: reader}
@@ -115,7 +115,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "S3FileReaderError",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				bucket, key, err := "bucket", "key", "Error!"
 				params := s3.GetObjectInput{
 					Bucket: aws.String(bucket),
@@ -129,7 +129,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "S3FileWriterSuccess",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				bucket, key := "bucket", "key"
 				input := bytes.NewReader(make([]byte, 0))
 				output := s3.PutObjectOutput{}
@@ -146,7 +146,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "S3FileWriterError",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				bucket, key, err := "bucket", "key", "Error!"
 				input := bytes.NewReader(make([]byte, 0))
 				output := s3.PutObjectOutput{}
@@ -163,7 +163,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "S3FileWriterSuccessNoEncryption",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				bucket, key := "bucket", "key"
 				input := bytes.NewReader(make([]byte, 0))
 				output := s3.PutObjectOutput{}
@@ -179,7 +179,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "S3ListFiles",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				bucket, key := "bucket", "key"
 				output := s3.ListObjectsOutput{
 					Contents: []*s3.Object{
@@ -205,7 +205,7 @@ func TestS3Calls(t *testing.T) {
 		},
 		{
 			desc: "S3ListFilesRecurse",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
+			testCase: func(svc *MockS3Handler, t *testing.T) {
 				bucket, key := "bucket", "key"
 
 				output := []s3.ListObjectsOutput{
@@ -255,7 +255,7 @@ func TestS3Calls(t *testing.T) {
 	for _, spec := range testCases {
 		t.Run(spec.desc, func(t *testing.T) {
 			c := gomock.NewController(t)
-			svc := NewMocks3Handler(c)
+			svc := NewMockS3Handler(c)
 			spec.testCase(svc, t)
 			c.Finish()
 		})
