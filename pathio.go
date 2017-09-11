@@ -28,13 +28,12 @@ const aesAlgo = "AES256"
 // generate a mock for Pathio
 //go:generate $GOPATH/bin/mockgen -source=$GOFILE -destination=gen_mock_s3handler.go -package=pathio
 
-// S3Handler defines the interface that pathio exposes.
-type S3Handler interface {
-	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
-	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
-	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
-	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
-	HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
+// Pathio is a defined interface for accessing both S3 and local files.
+type Pathio interface {
+	Reader(path string) (rc io.ReadCloser, err error)
+	Write(path string, input []byte) error
+	WriteReader(path string, input io.ReadSeeker) error
+	ListFiles(path string) ([]string, error)
 }
 
 // Client is the pathio client used to access the local file system and S3.
@@ -51,7 +50,7 @@ type Client struct {
 
 // DefaultClient is the default pathio client called by the Reader, Writer, and
 // WriteReader methods. It has S3 encryption enabled.
-var DefaultClient = &Client{}
+var DefaultClient Pathio = &Client{}
 
 // Reader calls DefaultClient's Reader method.
 func Reader(path string) (rc io.ReadCloser, err error) {
@@ -73,8 +72,17 @@ func ListFiles(path string) ([]string, error) {
 	return DefaultClient.ListFiles(path)
 }
 
+// s3Handler defines the interface that pathio needs for AWS access.
+type s3Handler interface {
+	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
+	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
+	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
+	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
+	HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
+}
+
 type s3Connection struct {
-	handler S3Handler
+	handler s3Handler
 	bucket  string
 	key     string
 }
@@ -292,7 +300,7 @@ func s3ConnectionInformation(path, region string) (s3Connection, error) {
 }
 
 // getRegionForBucket looks up the region name for the given bucket
-func getRegionForBucket(svc S3Handler, name string) (string, error) {
+func getRegionForBucket(svc s3Handler, name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
 	params := s3.GetBucketLocationInput{
