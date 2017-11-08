@@ -4,7 +4,7 @@ include golang.mk
 SHELL := /bin/bash
 PKG = gopkg.in/Clever/pathio.v3
 PKGS := $(shell go list ./... | grep -v /vendor)
-$(eval $(call golang-version-check,1.8))
+$(eval $(call golang-version-check,1.9))
 .PHONY: build test
 
 build:
@@ -27,3 +27,7 @@ test: $(PKGS)
 $(PKGS): golang-test-all-strict-deps
 	go get -d -t $@
 	$(call golang-test-all-strict,$@)
+
+
+install_deps: golang-dep-vendor-deps
+	$(call golang-dep-vendor)
