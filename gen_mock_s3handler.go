@@ -84,6 +84,19 @@ func (mr *MockPathioMockRecorder) ListFiles(path interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListFiles", reflect.TypeOf((*MockPathio)(nil).ListFiles), path)
 }
 
+// Exists mocks base method
+func (m *MockPathio) Exists(path string) (bool, error) {
+	ret := m.ctrl.Call(m, "Exists", path)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exists indicates an expected call of Exists
+func (mr *MockPathioMockRecorder) Exists(path interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPathio)(nil).Exists), path)
+}
+
 // Mocks3Handler is a mock of s3Handler interface
 type Mocks3Handler struct {
 	ctrl     *gomock.Controller
