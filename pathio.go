@@ -34,6 +34,7 @@ type Pathio interface {
 	Write(path string, input []byte) error
 	WriteReader(path string, input io.ReadSeeker) error
 	ListFiles(path string) ([]string, error)
+	Exists(path string) (bool, error)
 }
 
 // Client is the pathio client used to access the local file system and S3.
