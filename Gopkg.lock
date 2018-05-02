@@ -62,10 +62,10 @@
   version = "v1.30.3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/golang/mock"
   packages = ["gomock"]
-  revision = "13f360950a79f5864a972c786a10a50e44b69541"
-  version = "v1.0.0"
+  revision = "87f106fccd7e3ced294a19e86bebd7846911690a"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
@@ -85,10 +85,10 @@
   version = "v1.1.4"
 
 [[projects]]
-  name = "gopkg.in/Clever/pathio.v3"
-  packages = ["."]
-  revision = "c73e87470d4fc020005cf36bd16d54d7ad5e0334"
-  version = "v3.3.4"
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "640f4622ab692b87c2f3a94265e6f579fe38263d"
 
 [[projects]]
   name = "gopkg.in/alecthomas/kingpin.v2"
@@ -99,6 +99,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b009b1b07234c048e7e5c71e400948feae1996fbd8409534ef2d4c9353d7e0e5"
+  inputs-digest = "959589a57ce73168a08bdc66d9411a8d69f2a0055ab8d661453954bd9edb73f7"
   solver-name = "gps-cdcl"
   solver-version = 1
