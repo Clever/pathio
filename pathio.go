@@ -196,7 +196,7 @@ func lsS3(s3Conn s3Connection) ([]string, error) {
 		}
 		finalResults = append(finalResults, results...)
 
-		if *resp.IsTruncated {
+		if resp.IsTruncated != nil && *resp.IsTruncated {
 			params.Marker = aws.String(results[len(results)-1])
 		} else {
 			break
