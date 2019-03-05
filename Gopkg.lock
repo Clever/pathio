@@ -62,10 +62,10 @@
   version = "v1.30.3"
 
 [[projects]]
-  branch = "master"
   name = "github.com/golang/mock"
   packages = ["gomock"]
-  revision = "87f106fccd7e3ced294a19e86bebd7846911690a"
+  revision = "51421b967af1f557f93a59e0057aaf15ca02e29c"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
@@ -85,12 +85,6 @@
   version = "v1.1.4"
 
 [[projects]]
-  branch = "master"
-  name = "golang.org/x/net"
-  packages = ["context"]
-  revision = "640f4622ab692b87c2f3a94265e6f579fe38263d"
-
-[[projects]]
   name = "gopkg.in/alecthomas/kingpin.v2"
   packages = ["."]
   revision = "1087e65c9441605df944fb12c33f0fe7072d18ca"
@@ -99,6 +93,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "959589a57ce73168a08bdc66d9411a8d69f2a0055ab8d661453954bd9edb73f7"
+  inputs-digest = "af73ea828d8633bed2fde434d39fccc6037a1002d34ac8dcd31651c2a74d9392"
   solver-name = "gps-cdcl"
   solver-version = 1
