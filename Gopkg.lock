@@ -83,8 +83,8 @@
 [[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
-  version = "v1.1.4"
+  revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
+  version = "v1.3.0"
 
 [[projects]]
   name = "gopkg.in/Clever/pathio.v3"
@@ -95,12 +95,12 @@
 [[projects]]
   name = "gopkg.in/alecthomas/kingpin.v2"
   packages = ["."]
-  revision = "1087e65c9441605df944fb12c33f0fe7072d18ca"
-  version = "v2.2.5"
+  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
+  version = "v2.2.6"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "486785350d30b6e67f4d76499a366a28c6d231f12e5e613d68fef52caef6556b"
+  inputs-digest = "1caa09ecad141608561815c9f0ff9cb251b2e454c4ad5be328140114d4019358"
   solver-name = "gps-cdcl"
   solver-version = 1
