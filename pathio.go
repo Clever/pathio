@@ -111,6 +111,11 @@ func (c *Client) Write(path string, input []byte) error {
 // WriteReader writes all the data read from the specified io.Reader to the
 // output path. The path can either a local file path or an S3 path.
 func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
+	// return the file pointer to the start before reading from it when writing
+	if offset, err := input.Seek(0, os.SEEK_SET); err != nil || offset != 0 {
+		return fmt.Errorf("failed to reset the file pointer to 0. offset: %d; error %s", offset, err)
+	}
+
 	if strings.HasPrefix(path, "s3://") {
 		s3Conn, err := s3ConnectionInformation(path, c.Region)
 		if err != nil {
