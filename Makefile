@@ -16,9 +16,8 @@ audit-gen: gen
 	$(error "Generated files are not up to date. Please commit the results of `make gen`") \
 	@echo "")
 
-gomock:
+gomock: install_deps
 	go get -u github.com/golang/mock/gomock
-	go get -u github.com/golang/mock/mockgen
 
 gen: gomock
 	go generate
@@ -31,3 +30,5 @@ $(PKGS): golang-test-all-strict-deps
 
 install_deps: golang-dep-vendor-deps
 	$(call golang-dep-vendor)
+	go build -o bin/mockgen ./vendor/github.com/golang/mock/mockgen
+	cp bin/mockgen $(GOPATH)/bin/mockgen
