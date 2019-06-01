@@ -4,7 +4,7 @@ include golang.mk
 SHELL := /bin/bash
 PKG = gopkg.in/Clever/pathio.v3
 PKGS := $(shell go list ./... | grep -v /vendor)
-$(eval $(call golang-version-check,1.10))
+$(eval $(call golang-version-check,1.12))
 .PHONY: build test
 
 build:
