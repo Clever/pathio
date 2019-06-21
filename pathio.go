@@ -61,7 +61,6 @@ var DefaultClient Pathio = &Client{}
 func NewClient(cfg *aws.Config) *Client {
 	return &Client{
 		providedConfig: cfg,
-		Region:         "us-west-1",
 	}
 }
 
