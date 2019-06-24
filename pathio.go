@@ -22,8 +22,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-const defaultLocation = "us-east-1"
-const aesAlgo = "AES256"
+const (
+	defaultLocation = "us-east-1"
+	aesAlgo         = "AES256"
+)
 
 // generate a mock for Pathio
 //go:generate $GOPATH/bin/mockgen -source=$GOFILE -destination=gen_mock_s3handler.go -package=pathio
@@ -40,18 +42,27 @@ type Pathio interface {
 // Client is the pathio client used to access the local file system and S3.
 // To configure options on the client, create a new Client and call its methods
 // directly.
-// `&Client{
-//		disableS3Encryption: true, // disables encryption
-//		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
-// }.Write(...)`
+// 	&Client{
+// 		disableS3Encryption: true, // disables encryption
+// 		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
+// 	}.Write(...)
 type Client struct {
 	disableS3Encryption bool
 	Region              string
+	providedConfig      *aws.Config
 }
 
 // DefaultClient is the default pathio client called by the Reader, Writer, and
 // WriteReader methods. It has S3 encryption enabled.
 var DefaultClient Pathio = &Client{}
+
+// NewClient creates a new client that utilizes the provided AWS config. This can
+// be leveraged to enforce more limited permissions.
+func NewClient(cfg *aws.Config) *Client {
+	return &Client{
+		providedConfig: cfg,
+	}
+}
 
 // Reader calls DefaultClient's Reader method.
 func Reader(path string) (rc io.ReadCloser, err error) {
@@ -92,7 +103,7 @@ type s3Connection struct {
 // or an S3 path. It is the caller's responsibility to close rc.
 func (c *Client) Reader(path string) (rc io.ReadCloser, err error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := c.s3ConnectionInformation(path, c.Region)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +128,7 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 	}
 
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := c.s3ConnectionInformation(path, c.Region)
 		if err != nil {
 			return err
 		}
@@ -129,7 +140,7 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 // ListFiles lists all the files/directories in the directory. It does not recurse
 func (c *Client) ListFiles(path string) ([]string, error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := c.s3ConnectionInformation(path, c.Region)
 		if err != nil {
 			return nil, err
 		}
@@ -142,7 +153,7 @@ func (c *Client) ListFiles(path string) ([]string, error) {
 // NOTE: S3 is eventually consistent so keep in mind that there is a delay.
 func (c *Client) Exists(path string) (bool, error) {
 	if strings.HasPrefix(path, "s3://") {
-		s3Conn, err := s3ConnectionInformation(path, c.Region)
+		s3Conn, err := c.s3ConnectionInformation(path, c.Region)
 		if err != nil {
 			return false, err
 		}
@@ -288,7 +299,7 @@ func parseS3Path(path string) (string, string, error) {
 
 // s3ConnectionInformation parses the s3 path and returns the s3 connection from the
 // correct region, as well as the bucket, and key
-func s3ConnectionInformation(path, region string) (s3Connection, error) {
+func (c *Client) s3ConnectionInformation(path, region string) (s3Connection, error) {
 	bucket, key, err := parseS3Path(path)
 	if err != nil {
 		return s3Connection{}, err
@@ -296,13 +307,13 @@ func s3ConnectionInformation(path, region string) (s3Connection, error) {
 
 	// If no region passed in, look up region in S3
 	if region == "" {
-		region, err = getRegionForBucket(newS3Handler(defaultLocation), bucket)
+		region, err = getRegionForBucket(c.newS3Handler(defaultLocation), bucket)
 		if err != nil {
 			return s3Connection{}, err
 		}
 	}
 
-	return s3Connection{newS3Handler(region), bucket, key}, nil
+	return s3Connection{c.newS3Handler(region), bucket, key}, nil
 }
 
 // getRegionForBucket looks up the region name for the given bucket
@@ -348,7 +359,13 @@ func (m *liveS3Handler) HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOut
 	return m.liveS3.HeadObject(input)
 }
 
-func newS3Handler(region string) *liveS3Handler {
+func (c *Client) newS3Handler(region string) *liveS3Handler {
+	if c.providedConfig != nil {
+		return &liveS3Handler{
+			liveS3: s3.New(session.New(), c.providedConfig.WithRegion(region).WithS3ForcePathStyle(true)),
+		}
+	}
+
 	config := aws.NewConfig().WithRegion(region).WithS3ForcePathStyle(true)
 	session := session.New()
 	return &liveS3Handler{s3.New(session, config)}
