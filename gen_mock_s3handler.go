@@ -77,6 +77,20 @@ func (mr *MockPathioMockRecorder) WriteReader(path, input interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteReader", reflect.TypeOf((*MockPathio)(nil).WriteReader), path, input)
 }
 
+// Delete mocks base method
+func (m *MockPathio) Delete(path string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", path)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete
+func (mr *MockPathioMockRecorder) Delete(path interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPathio)(nil).Delete), path)
+}
+
 // ListFiles mocks base method
 func (m *MockPathio) ListFiles(path string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -158,6 +172,21 @@ func (m *Mocks3Handler) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput
 func (mr *Mocks3HandlerMockRecorder) GetObject(input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*Mocks3Handler)(nil).GetObject), input)
+}
+
+// DeleteObject mocks base method
+func (m *Mocks3Handler) DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteObject", input)
+	ret0, _ := ret[0].(*s3.DeleteObjectOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteObject indicates an expected call of DeleteObject
+func (mr *Mocks3HandlerMockRecorder) DeleteObject(input interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*Mocks3Handler)(nil).DeleteObject), input)
 }
 
 // PutObject mocks base method

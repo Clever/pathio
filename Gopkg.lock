@@ -87,6 +87,12 @@
   version = "v1.3.0"
 
 [[projects]]
+  name = "gopkg.in/Clever/pathio.v3"
+  packages = ["."]
+  revision = "1cf2c856e4089539a05b1104a533becb3d6872d7"
+  version = "v3.6.0"
+
+[[projects]]
   name = "gopkg.in/alecthomas/kingpin.v2"
   packages = ["."]
   revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
@@ -95,6 +101,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ea07210ca8a6c4e3e688a6f89d8925e6287101248ca7048bd6c7fd5d7c83f794"
+  inputs-digest = "cecea4e03ec3a1b0d3ef22cc4661af221a3f8c251834bf1a7889014f1a45e9d3"
   solver-name = "gps-cdcl"
   solver-version = 1
