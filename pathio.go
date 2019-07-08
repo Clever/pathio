@@ -90,6 +90,11 @@ func ListFiles(path string) ([]string, error) {
 	return DefaultClient.ListFiles(path)
 }
 
+// Exists calls DefaultClient's Exists method.
+func Exists(path string) (bool, error) {
+	return DefaultClient.Exists(path)
+}
+
 // s3Handler defines the interface that pathio needs for AWS access.
 type s3Handler interface {
 	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
