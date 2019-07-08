@@ -17,7 +17,7 @@ Note that using s3 paths requires setting two environment variables
     2. AWS_ACCESS_KEY_ID
 
 ## Usage
-Pathio has a very easy to use interface, with 4 main functions:
+Pathio has a very easy to use interface, with 5 main functions:
 
 ```
 import "gopkg.in/Clever/pathio.v3"
@@ -49,4 +49,11 @@ err = pathio.WriteReader("/home/me/hello_world", toWriteReader) // local
 // func Reader(path string) (rc io.ReadCloser, err error)
 reader, err = pathio.Reader("s3://bucket/key/to/read") // s3
 reader, err = pathio.Reader("/home/me/file/to/read")   // local
+```
+
+### Delete
+```
+// func Delete(path string) error
+err = pathio.Delete("s3://bucket/key/to/read") // s3
+err = pathio.Delete("/home/me/file/to/read")   // local
 ```

@@ -35,6 +35,7 @@ type Pathio interface {
 	Reader(path string) (rc io.ReadCloser, err error)
 	Write(path string, input []byte) error
 	WriteReader(path string, input io.ReadSeeker) error
+	Delete(path string) error
 	ListFiles(path string) ([]string, error)
 	Exists(path string) (bool, error)
 }
@@ -79,6 +80,11 @@ func WriteReader(path string, input io.ReadSeeker) error {
 	return DefaultClient.WriteReader(path, input)
 }
 
+// Delete calls DefaultClient's Delete method.
+func Delete(path string, input []byte) error {
+	return DefaultClient.Delete(path)
+}
+
 // ListFiles calls DefaultClient's ListFiles method.
 func ListFiles(path string) ([]string, error) {
 	return DefaultClient.ListFiles(path)
@@ -88,6 +94,7 @@ func ListFiles(path string) ([]string, error) {
 type s3Handler interface {
 	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
 	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
+	DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error)
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
 	HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
@@ -135,6 +142,20 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 		return writeToS3(s3Conn, input, c.disableS3Encryption)
 	}
 	return writeToLocalFile(path, input)
+}
+
+// Delete deletes the object at the specified path. The path can be either
+// a local file path or an S3 path.
+func (c *Client) Delete(path string) error {
+	if strings.HasPrefix(path, "s3://") {
+		s3Conn, err := c.s3ConnectionInformation(path, c.Region)
+		if err != nil {
+			return err
+		}
+		return deleteS3Object(s3Conn)
+	}
+	// Local file path
+	return os.Remove(path)
 }
 
 // ListFiles lists all the files/directories in the directory. It does not recurse
@@ -270,6 +291,17 @@ func writeToS3(s3Conn s3Connection, input io.ReadSeeker, disableEncryption bool)
 	return err
 }
 
+// deleteS3Object deletes the file on S3 at the given path
+func deleteS3Object(s3Conn s3Connection) error {
+	params := s3.DeleteObjectInput{
+		Bucket: aws.String(s3Conn.bucket),
+		Key:    aws.String(s3Conn.key),
+	}
+
+	_, err := s3Conn.handler.DeleteObject(&params)
+	return err
+}
+
 // writeToLocalFile writes the given file locally
 func writeToLocalFile(path string, input io.ReadSeeker) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -345,6 +377,10 @@ func (m *liveS3Handler) GetBucketLocation(input *s3.GetBucketLocationInput) (*s3
 
 func (m *liveS3Handler) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
 	return m.liveS3.GetObject(input)
+}
+
+func (m *liveS3Handler) DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error) {
+	return m.liveS3.DeleteObject(input)
 }
 
 func (m *liveS3Handler) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
