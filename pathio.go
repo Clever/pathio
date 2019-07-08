@@ -81,7 +81,7 @@ func WriteReader(path string, input io.ReadSeeker) error {
 }
 
 // Delete calls DefaultClient's Delete method.
-func Delete(path string, input []byte) error {
+func Delete(path string) error {
 	return DefaultClient.Delete(path)
 }
 
