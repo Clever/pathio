@@ -66,8 +66,8 @@
 [[projects]]
   name = "github.com/golang/mock"
   packages = ["gomock"]
-  revision = "51421b967af1f557f93a59e0057aaf15ca02e29c"
-  version = "v1.2.0"
+  revision = "9fa652df1129bef0e734c9cf9bf6dbae9ef3b9fa"
+  version = "1.3.1"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
@@ -89,8 +89,8 @@
 [[projects]]
   name = "gopkg.in/Clever/pathio.v3"
   packages = ["."]
-  revision = "1cf2c856e4089539a05b1104a533becb3d6872d7"
-  version = "v3.6.0"
+  revision = "4e70ca27e70fdb1e7331847bd7b05837fbfcb58a"
+  version = "v3.7.0"
 
 [[projects]]
   name = "gopkg.in/alecthomas/kingpin.v2"
