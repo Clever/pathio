@@ -41,16 +41,9 @@ type Pathio interface {
 }
 
 // Client is the pathio client used to access the local file system and S3.
-// To configure options on the client, create a new Client and call its methods
-// directly.
-// 	&Client{
-// 		disableS3Encryption: true, // disables encryption
-// 		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
-// 	}.Write(...)
 type Client struct {
-	disableS3Encryption bool
-	Region              string
-	providedConfig      *aws.Config
+	Region         string
+	providedConfig *aws.Config
 }
 
 // DefaultClient is the default pathio client called by the Reader, Writer, and
@@ -144,7 +137,7 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 		if err != nil {
 			return err
 		}
-		return writeToS3(s3Conn, input, c.disableS3Encryption)
+		return writeToS3(s3Conn, input)
 	}
 	return writeToLocalFile(path, input)
 }
@@ -282,15 +275,13 @@ func s3FileReader(s3Conn s3Connection) (io.ReadCloser, error) {
 }
 
 // writeToS3 uploads the given file to S3
-func writeToS3(s3Conn s3Connection, input io.ReadSeeker, disableEncryption bool) error {
+func writeToS3(s3Conn s3Connection, input io.ReadSeeker) error {
 	params := s3.PutObjectInput{
-		Bucket: aws.String(s3Conn.bucket),
-		Key:    aws.String(s3Conn.key),
-		Body:   input,
-	}
-	if !disableEncryption {
-		algo := aesAlgo
-		params.ServerSideEncryption = &algo
+		Bucket:               aws.String(s3Conn.bucket),
+		Key:                  aws.String(s3Conn.key),
+		Body:                 input,
+		ServerSideEncryption: aws.String(aesAlgo),
+		StorageClass:         aws.String(s3.StorageClassIntelligentTiering),
 	}
 	_, err := s3Conn.handler.PutObject(&params)
 	return err

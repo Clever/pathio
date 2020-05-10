@@ -138,9 +138,10 @@ func TestS3Calls(t *testing.T) {
 					Key:                  aws.String(key),
 					Body:                 input,
 					ServerSideEncryption: aws.String("AES256"),
+					StorageClass:         aws.String(s3.StorageClassIntelligentTiering),
 				}
 				svc.EXPECT().PutObject(&params).Return(&output, nil)
-				foundErr := writeToS3(s3Connection{svc, bucket, key}, input, false)
+				foundErr := writeToS3(s3Connection{svc, bucket, key}, input)
 				assert.Equal(t, foundErr, nil)
 			},
 		},
@@ -155,26 +156,11 @@ func TestS3Calls(t *testing.T) {
 					Key:                  aws.String(key),
 					Body:                 input,
 					ServerSideEncryption: aws.String("AES256"),
+					StorageClass:         aws.String(s3.StorageClassIntelligentTiering),
 				}
 				svc.EXPECT().PutObject(&params).Return(&output, errors.New(err))
-				foundErr := writeToS3(s3Connection{svc, bucket, key}, input, false)
+				foundErr := writeToS3(s3Connection{svc, bucket, key}, input)
 				assert.Equal(t, foundErr.Error(), err)
-			},
-		},
-		{
-			desc: "S3FileWriterSuccessNoEncryption",
-			testCase: func(svc *Mocks3Handler, t *testing.T) {
-				bucket, key := "bucket", "key"
-				input := bytes.NewReader(make([]byte, 0))
-				output := s3.PutObjectOutput{}
-				params := s3.PutObjectInput{
-					Bucket: aws.String(bucket),
-					Key:    aws.String(key),
-					Body:   input,
-				}
-				svc.EXPECT().PutObject(&params).Return(&output, nil)
-				foundErr := writeToS3(s3Connection{svc, bucket, key}, input, true)
-				assert.Equal(t, foundErr, nil)
 			},
 		},
 		{
