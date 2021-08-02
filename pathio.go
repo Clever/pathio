@@ -28,7 +28,7 @@ const (
 )
 
 // generate a mock for Pathio
-//go:generate $GOPATH/bin/mockgen -source=$GOFILE -destination=gen_mock_s3handler.go -package=pathio
+//go:generate bin/mockgen -source=$GOFILE -destination=gen_mock_s3handler.go -package=pathio
 
 // Pathio is a defined interface for accessing both S3 and local files.
 type Pathio interface {
