@@ -1,9 +1,9 @@
 # pathio
 
-[![GoDoc](https://godoc.org/gopkg.in/Clever/pathio.v3?status.svg)](https://godoc.org/gopkg.in/Clever/pathio.v3)
+[![GoDoc](https://godoc.org/github.com/Clever/pathio/v4?status.svg)](https://godoc.org/github.com/Clever/pathio/v4)
 
 --
-    import "gopkg.in/Clever/pathio.v3"
+    import "github.com/Clever/pathio/v4"
 
 Package pathio is a package that allows writing to and reading from different
 types of paths transparently. It supports two types of paths:
@@ -20,7 +20,7 @@ Note that using s3 paths requires setting two environment variables
 Pathio has a very easy to use interface, with 5 main functions:
 
 ```
-import "gopkg.in/Clever/pathio.v3"
+import "github.com/Clever/pathio/v4"
 var err error
 ```
 

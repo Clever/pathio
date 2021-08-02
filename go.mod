@@ -8,6 +8,5 @@ require (
 	github.com/aws/aws-sdk-go v1.19.15
 	github.com/golang/mock v1.6.0
 	github.com/stretchr/testify v1.6.1
-	gopkg.in/Clever/pathio.v3 v3.7.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
