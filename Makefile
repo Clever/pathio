@@ -2,9 +2,9 @@ include golang.mk
 .DEFAULT_GOAL := test # override default goal set in library makefile
 
 SHELL := /bin/bash
-PKG = gopkg.in/Clever/pathio.v3
-PKGS := $(shell go list ./... | grep -v /vendor)
-$(eval $(call golang-version-check,1.13))
+PKG = github.com/Clever/pathio/v4
+PKGS := $(shell go list ./... | grep -v /vendor | grep -v /tools)
+$(eval $(call golang-version-check,1.16))
 .PHONY: build test
 
 build:
@@ -16,18 +16,13 @@ audit-gen: gen
 	$(error "Generated files are not up to date. Please commit the results of `make gen`") \
 	@echo "")
 
-gomock:
-	go get -u github.com/golang/mock/gomock
-	go get -u github.com/golang/mock/mockgen
-
-gen: gomock
+gen:
 	go generate
 
 test: $(PKGS)
 $(PKGS): golang-test-all-strict-deps
-	go get -d -t $@
 	$(call golang-test-all-strict,$@)
 
-
-install_deps: golang-dep-vendor-deps
-	$(call golang-dep-vendor)
+install_deps:
+	go mod vendor
+	go build -o bin/mockgen ./vendor/github.com/golang/mock/mockgen

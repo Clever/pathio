@@ -24,4 +24,5 @@ _testmain.go
 p3
 
 
-vendor
+vendor/
+bin/
