@@ -57,3 +57,4 @@ reader, err = pathio.Reader("/home/me/file/to/read")   // local
 err = pathio.Delete("s3://bucket/key/to/read") // s3
 err = pathio.Delete("/home/me/file/to/read")   // local
 ```
+test
