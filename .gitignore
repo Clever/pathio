@@ -26,3 +26,4 @@ p3
 
 vendor/
 bin/
+.git/
