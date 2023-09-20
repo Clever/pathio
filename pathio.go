@@ -43,10 +43,11 @@ type Pathio interface {
 // Client is the pathio client used to access the local file system and S3.
 // To configure options on the client, create a new Client and call its methods
 // directly.
-// 	&Client{
-// 		disableS3Encryption: true, // disables encryption
-// 		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
-// 	}.Write(...)
+//
+//	&Client{
+//		disableS3Encryption: true, // disables encryption
+//		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
+//	}.Write(...)
 type Client struct {
 	disableS3Encryption bool
 	Region              string

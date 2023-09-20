@@ -183,10 +183,10 @@ func TestS3Calls(t *testing.T) {
 				bucket, key := "bucket", "key"
 				output := s3.ListObjectsOutput{
 					Contents: []*s3.Object{
-						&s3.Object{Key: aws.String("file1")},
+						{Key: aws.String("file1")},
 					},
 					CommonPrefixes: []*s3.CommonPrefix{
-						&s3.CommonPrefix{Prefix: aws.String("prefix/")},
+						{Prefix: aws.String("prefix/")},
 					},
 					IsTruncated: aws.Bool(false),
 				}
@@ -209,34 +209,34 @@ func TestS3Calls(t *testing.T) {
 				bucket, key := "bucket", "key"
 
 				output := []s3.ListObjectsOutput{
-					s3.ListObjectsOutput{
+					{
 						Contents: []*s3.Object{
-							&s3.Object{Key: aws.String("file1")},
+							{Key: aws.String("file1")},
 						},
 						CommonPrefixes: []*s3.CommonPrefix{
-							&s3.CommonPrefix{Prefix: aws.String("prefix/")},
-							&s3.CommonPrefix{Prefix: aws.String("prefix2/")},
+							{Prefix: aws.String("prefix/")},
+							{Prefix: aws.String("prefix2/")},
 						},
 						IsTruncated: aws.Bool(true),
 					},
-					s3.ListObjectsOutput{
+					{
 						Contents: []*s3.Object{
-							&s3.Object{Key: aws.String("file2")},
+							{Key: aws.String("file2")},
 						},
 						CommonPrefixes: []*s3.CommonPrefix{
-							&s3.CommonPrefix{Prefix: aws.String("prefix2/")},
+							{Prefix: aws.String("prefix2/")},
 						},
 						IsTruncated: aws.Bool(false),
 					},
 				}
 
 				params := []s3.ListObjectsInput{
-					s3.ListObjectsInput{
+					{
 						Bucket:    aws.String(bucket),
 						Prefix:    aws.String(key),
 						Delimiter: aws.String("/"),
 					},
-					s3.ListObjectsInput{
+					{
 						Bucket:    aws.String(bucket),
 						Prefix:    aws.String(key),
 						Delimiter: aws.String("/"),
