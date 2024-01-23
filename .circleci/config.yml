@@ -1,9 +1,9 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/Clever/pathio
+    working_directory: ~/go/src/github.com/Clever/pathio
     docker:
-    - image: circleci/golang:1.16-stretch
+    - image: cimg/go:1.21
     environment:
       GOPRIVATE: github.com/Clever/*
       CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
