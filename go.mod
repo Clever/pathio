@@ -1,6 +1,6 @@
 module github.com/Clever/pathio/v4
 
-go 1.21
+go 1.24
 
 require (
 	github.com/aws/aws-sdk-go v1.19.15
@@ -21,3 +21,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
+
+tool github.com/golang/mock/mockgen
