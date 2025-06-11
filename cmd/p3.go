@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Clever/pathio/v4"
+	"github.com/Clever/pathio/v5"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 

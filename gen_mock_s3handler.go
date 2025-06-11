@@ -5,10 +5,11 @@
 package pathio
 
 import (
+	context "context"
 	io "io"
 	reflect "reflect"
 
-	s3 "github.com/aws/aws-sdk-go/service/s3"
+	s3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -122,6 +123,149 @@ func (mr *MockPathioMockRecorder) WriteReader(path, input interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteReader", reflect.TypeOf((*MockPathio)(nil).WriteReader), path, input)
 }
 
+// MockS3API is a mock of S3API interface.
+type MockS3API struct {
+	ctrl     *gomock.Controller
+	recorder *MockS3APIMockRecorder
+}
+
+// MockS3APIMockRecorder is the mock recorder for MockS3API.
+type MockS3APIMockRecorder struct {
+	mock *MockS3API
+}
+
+// NewMockS3API creates a new mock instance.
+func NewMockS3API(ctrl *gomock.Controller) *MockS3API {
+	mock := &MockS3API{ctrl: ctrl}
+	mock.recorder = &MockS3APIMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockS3API) EXPECT() *MockS3APIMockRecorder {
+	return m.recorder
+}
+
+// DeleteObject mocks base method.
+func (m *MockS3API) DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, params}
+	for _, a := range optFns {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteObject", varargs...)
+	ret0, _ := ret[0].(*s3.DeleteObjectOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteObject indicates an expected call of DeleteObject.
+func (mr *MockS3APIMockRecorder) DeleteObject(ctx, params interface{}, optFns ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, params}, optFns...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockS3API)(nil).DeleteObject), varargs...)
+}
+
+// GetBucketLocation mocks base method.
+func (m *MockS3API) GetBucketLocation(ctx context.Context, params *s3.GetBucketLocationInput, optFns ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, params}
+	for _, a := range optFns {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetBucketLocation", varargs...)
+	ret0, _ := ret[0].(*s3.GetBucketLocationOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBucketLocation indicates an expected call of GetBucketLocation.
+func (mr *MockS3APIMockRecorder) GetBucketLocation(ctx, params interface{}, optFns ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, params}, optFns...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBucketLocation", reflect.TypeOf((*MockS3API)(nil).GetBucketLocation), varargs...)
+}
+
+// GetObject mocks base method.
+func (m *MockS3API) GetObject(arg0 context.Context, arg1 *s3.GetObjectInput, arg2 ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetObject", varargs...)
+	ret0, _ := ret[0].(*s3.GetObjectOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetObject indicates an expected call of GetObject.
+func (mr *MockS3APIMockRecorder) GetObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*MockS3API)(nil).GetObject), varargs...)
+}
+
+// HeadObject mocks base method.
+func (m *MockS3API) HeadObject(arg0 context.Context, arg1 *s3.HeadObjectInput, arg2 ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "HeadObject", varargs...)
+	ret0, _ := ret[0].(*s3.HeadObjectOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HeadObject indicates an expected call of HeadObject.
+func (mr *MockS3APIMockRecorder) HeadObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadObject", reflect.TypeOf((*MockS3API)(nil).HeadObject), varargs...)
+}
+
+// ListObjectsV2 mocks base method.
+func (m *MockS3API) ListObjectsV2(arg0 context.Context, arg1 *s3.ListObjectsV2Input, arg2 ...func(*s3.Options)) (*s3.ListObjectsV2Output, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListObjectsV2", varargs...)
+	ret0, _ := ret[0].(*s3.ListObjectsV2Output)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListObjectsV2 indicates an expected call of ListObjectsV2.
+func (mr *MockS3APIMockRecorder) ListObjectsV2(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListObjectsV2", reflect.TypeOf((*MockS3API)(nil).ListObjectsV2), varargs...)
+}
+
+// PutObject mocks base method.
+func (m *MockS3API) PutObject(arg0 context.Context, arg1 *s3.PutObjectInput, arg2 ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "PutObject", varargs...)
+	ret0, _ := ret[0].(*s3.PutObjectOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PutObject indicates an expected call of PutObject.
+func (mr *MockS3APIMockRecorder) PutObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutObject", reflect.TypeOf((*MockS3API)(nil).PutObject), varargs...)
+}
+
 // Mocks3Handler is a mock of s3Handler interface.
 type Mocks3Handler struct {
 	ctrl     *gomock.Controller
@@ -146,91 +290,91 @@ func (m *Mocks3Handler) EXPECT() *Mocks3HandlerMockRecorder {
 }
 
 // DeleteObject mocks base method.
-func (m *Mocks3Handler) DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error) {
+func (m *Mocks3Handler) DeleteObject(ctx context.Context, input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteObject", input)
+	ret := m.ctrl.Call(m, "DeleteObject", ctx, input)
 	ret0, _ := ret[0].(*s3.DeleteObjectOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DeleteObject indicates an expected call of DeleteObject.
-func (mr *Mocks3HandlerMockRecorder) DeleteObject(input interface{}) *gomock.Call {
+func (mr *Mocks3HandlerMockRecorder) DeleteObject(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*Mocks3Handler)(nil).DeleteObject), input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*Mocks3Handler)(nil).DeleteObject), ctx, input)
 }
 
 // GetBucketLocation mocks base method.
-func (m *Mocks3Handler) GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
+func (m *Mocks3Handler) GetBucketLocation(ctx context.Context, input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBucketLocation", input)
+	ret := m.ctrl.Call(m, "GetBucketLocation", ctx, input)
 	ret0, _ := ret[0].(*s3.GetBucketLocationOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetBucketLocation indicates an expected call of GetBucketLocation.
-func (mr *Mocks3HandlerMockRecorder) GetBucketLocation(input interface{}) *gomock.Call {
+func (mr *Mocks3HandlerMockRecorder) GetBucketLocation(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBucketLocation", reflect.TypeOf((*Mocks3Handler)(nil).GetBucketLocation), input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBucketLocation", reflect.TypeOf((*Mocks3Handler)(nil).GetBucketLocation), ctx, input)
 }
 
 // GetObject mocks base method.
-func (m *Mocks3Handler) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
+func (m *Mocks3Handler) GetObject(ctx context.Context, input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetObject", input)
+	ret := m.ctrl.Call(m, "GetObject", ctx, input)
 	ret0, _ := ret[0].(*s3.GetObjectOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetObject indicates an expected call of GetObject.
-func (mr *Mocks3HandlerMockRecorder) GetObject(input interface{}) *gomock.Call {
+func (mr *Mocks3HandlerMockRecorder) GetObject(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*Mocks3Handler)(nil).GetObject), input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*Mocks3Handler)(nil).GetObject), ctx, input)
 }
 
 // HeadObject mocks base method.
-func (m *Mocks3Handler) HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {
+func (m *Mocks3Handler) HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeadObject", input)
+	ret := m.ctrl.Call(m, "HeadObject", ctx, input)
 	ret0, _ := ret[0].(*s3.HeadObjectOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // HeadObject indicates an expected call of HeadObject.
-func (mr *Mocks3HandlerMockRecorder) HeadObject(input interface{}) *gomock.Call {
+func (mr *Mocks3HandlerMockRecorder) HeadObject(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadObject", reflect.TypeOf((*Mocks3Handler)(nil).HeadObject), input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadObject", reflect.TypeOf((*Mocks3Handler)(nil).HeadObject), ctx, input)
 }
 
 // ListObjects mocks base method.
-func (m *Mocks3Handler) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
+func (m *Mocks3Handler) ListObjects(ctx context.Context, input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListObjects", input)
-	ret0, _ := ret[0].(*s3.ListObjectsOutput)
+	ret := m.ctrl.Call(m, "ListObjects", ctx, input)
+	ret0, _ := ret[0].(*s3.ListObjectsV2Output)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListObjects indicates an expected call of ListObjects.
-func (mr *Mocks3HandlerMockRecorder) ListObjects(input interface{}) *gomock.Call {
+func (mr *Mocks3HandlerMockRecorder) ListObjects(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListObjects", reflect.TypeOf((*Mocks3Handler)(nil).ListObjects), input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListObjects", reflect.TypeOf((*Mocks3Handler)(nil).ListObjects), ctx, input)
 }
 
 // PutObject mocks base method.
-func (m *Mocks3Handler) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+func (m *Mocks3Handler) PutObject(ctx context.Context, input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PutObject", input)
+	ret := m.ctrl.Call(m, "PutObject", ctx, input)
 	ret0, _ := ret[0].(*s3.PutObjectOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PutObject indicates an expected call of PutObject.
-func (mr *Mocks3HandlerMockRecorder) PutObject(input interface{}) *gomock.Call {
+func (mr *Mocks3HandlerMockRecorder) PutObject(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutObject", reflect.TypeOf((*Mocks3Handler)(nil).PutObject), input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutObject", reflect.TypeOf((*Mocks3Handler)(nil).PutObject), ctx, input)
 }

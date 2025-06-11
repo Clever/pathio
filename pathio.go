@@ -10,16 +10,21 @@ package pathio
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsV2Config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 )
 
 const (
@@ -49,6 +54,7 @@ type Pathio interface {
 //		Region: "us-east-1", // hardcodes the s3 region, instead of looking it up
 //	}.Write(...)
 type Client struct {
+	ctx                 context.Context
 	disableS3Encryption bool
 	Region              string
 	providedConfig      *aws.Config
@@ -60,8 +66,9 @@ var DefaultClient Pathio = &Client{}
 
 // NewClient creates a new client that utilizes the provided AWS config. This can
 // be leveraged to enforce more limited permissions.
-func NewClient(cfg *aws.Config) *Client {
+func NewClient(ctx context.Context, cfg *aws.Config) *Client {
 	return &Client{
+		ctx:            ctx,
 		providedConfig: cfg,
 	}
 }
@@ -96,14 +103,26 @@ func Exists(path string) (bool, error) {
 	return DefaultClient.Exists(path)
 }
 
-// s3Handler defines the interface that pathio needs for AWS access.
+// S3API defines the interfaces that pathio needs for AWS access.
+type S3API interface {
+	GetBucketLocation(ctx context.Context, params *s3.GetBucketLocationInput, optFns ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error)
+	ListObjectsV2(context.Context, *s3.ListObjectsV2Input, ...func(*s3.Options)) (*s3.ListObjectsV2Output, error)
+	HeadObject(context.Context, *s3.HeadObjectInput, ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
+
+	GetObject(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error)
+
+	PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
+}
+
+// s3Handler defines the wrapper interface that pathio uses for AWS access
 type s3Handler interface {
-	GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
-	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
-	DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error)
-	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
-	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
-	HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
+	GetBucketLocation(ctx context.Context, input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error)
+	GetObject(ctx context.Context, input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
+	DeleteObject(ctx context.Context, input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error)
+	PutObject(ctx context.Context, input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
+	ListObjects(ctx context.Context, input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
+	HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
 }
 
 type s3Connection struct {
@@ -120,7 +139,7 @@ func (c *Client) Reader(path string) (rc io.ReadCloser, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return s3FileReader(s3Conn)
+		return s3FileReader(c.ctx, s3Conn)
 	}
 	// Local file path
 	return os.Open(path)
@@ -145,7 +164,7 @@ func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 		if err != nil {
 			return err
 		}
-		return writeToS3(s3Conn, input, c.disableS3Encryption)
+		return writeToS3(c.ctx, s3Conn, input, c.disableS3Encryption)
 	}
 	return writeToLocalFile(path, input)
 }
@@ -158,7 +177,7 @@ func (c *Client) Delete(path string) error {
 		if err != nil {
 			return err
 		}
-		return deleteS3Object(s3Conn)
+		return deleteS3Object(c.ctx, s3Conn)
 	}
 	// Local file path
 	return os.Remove(path)
@@ -171,7 +190,7 @@ func (c *Client) ListFiles(path string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		return lsS3(s3Conn)
+		return lsS3(c.ctx, s3Conn)
 	}
 	return lsLocal(path)
 }
@@ -184,19 +203,26 @@ func (c *Client) Exists(path string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		return existsS3(s3Conn)
+		return existsS3(c.ctx, s3Conn)
 	}
 	return existsLocal(path)
 }
 
-func existsS3(s3Conn s3Connection) (bool, error) {
-	_, err := s3Conn.handler.HeadObject(&s3.HeadObjectInput{
+func existsS3(ctx context.Context, s3Conn s3Connection) (bool, error) {
+	_, err := s3Conn.handler.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(s3Conn.bucket),
 		Key:    aws.String(s3Conn.key),
 	})
 	if err != nil {
-		if aerr, ok := err.(s3.RequestFailure); ok && aerr.StatusCode() == 404 {
-			return false, nil
+		var apiError smithy.APIError
+		if errors.As(err, &apiError) {
+			var notFound *s3Types.NotFound
+			switch {
+			case errors.As(apiError, &notFound):
+				return false, nil
+			default:
+				return false, err
+			}
 		}
 		return false, err
 	}
@@ -211,8 +237,8 @@ func existsLocal(path string) (bool, error) {
 	return err == nil, err
 }
 
-func lsS3(s3Conn s3Connection) ([]string, error) {
-	params := s3.ListObjectsInput{
+func lsS3(ctx context.Context, s3Conn s3Connection) ([]string, error) {
+	params := s3.ListObjectsV2Input{
 		Bucket:    aws.String(s3Conn.bucket),
 		Prefix:    aws.String(s3Conn.key),
 		Delimiter: aws.String("/"),
@@ -223,7 +249,7 @@ func lsS3(s3Conn s3Connection) ([]string, error) {
 	// In this case we set a Marker that the next query will start from.
 	// We also ensure that prefixes are not duplicated
 	for {
-		resp, err := s3Conn.handler.ListObjects(&params)
+		resp, err := s3Conn.handler.ListObjects(ctx, &params)
 		if err != nil {
 			return nil, err
 		}
@@ -240,7 +266,7 @@ func lsS3(s3Conn s3Connection) ([]string, error) {
 		finalResults = append(finalResults, results...)
 
 		if resp.IsTruncated != nil && *resp.IsTruncated {
-			params.Marker = aws.String(results[len(results)-1])
+			params.ContinuationToken = resp.ContinuationToken
 		} else {
 			break
 		}
@@ -270,12 +296,12 @@ func lsLocal(path string) ([]string, error) {
 }
 
 // s3FileReader converts an S3Path into an io.ReadCloser
-func s3FileReader(s3Conn s3Connection) (io.ReadCloser, error) {
+func s3FileReader(ctx context.Context, s3Conn s3Connection) (io.ReadCloser, error) {
 	params := s3.GetObjectInput{
 		Bucket: aws.String(s3Conn.bucket),
 		Key:    aws.String(s3Conn.key),
 	}
-	resp, err := s3Conn.handler.GetObject(&params)
+	resp, err := s3Conn.handler.GetObject(ctx, &params)
 	if err != nil {
 		return nil, err
 	}
@@ -283,28 +309,27 @@ func s3FileReader(s3Conn s3Connection) (io.ReadCloser, error) {
 }
 
 // writeToS3 uploads the given file to S3
-func writeToS3(s3Conn s3Connection, input io.ReadSeeker, disableEncryption bool) error {
+func writeToS3(ctx context.Context, s3Conn s3Connection, input io.ReadSeeker, disableEncryption bool) error {
 	params := s3.PutObjectInput{
 		Bucket: aws.String(s3Conn.bucket),
 		Key:    aws.String(s3Conn.key),
 		Body:   input,
 	}
 	if !disableEncryption {
-		algo := aesAlgo
-		params.ServerSideEncryption = &algo
+		params.ServerSideEncryption = aesAlgo
 	}
-	_, err := s3Conn.handler.PutObject(&params)
+	_, err := s3Conn.handler.PutObject(ctx, &params)
 	return err
 }
 
 // deleteS3Object deletes the file on S3 at the given path
-func deleteS3Object(s3Conn s3Connection) error {
+func deleteS3Object(ctx context.Context, s3Conn s3Connection) error {
 	params := s3.DeleteObjectInput{
 		Bucket: aws.String(s3Conn.bucket),
 		Key:    aws.String(s3Conn.key),
 	}
 
-	_, err := s3Conn.handler.DeleteObject(&params)
+	_, err := s3Conn.handler.DeleteObject(ctx, &params)
 	return err
 }
 
@@ -345,70 +370,71 @@ func (c *Client) s3ConnectionInformation(path, region string) (s3Connection, err
 
 	// If no region passed in, look up region in S3
 	if region == "" {
-		region, err = getRegionForBucket(c.newS3Handler(defaultLocation), bucket)
+		region, err = getRegionForBucket(c.ctx, c.newS3Handler(c.ctx, defaultLocation), bucket)
 		if err != nil {
 			return s3Connection{}, err
 		}
 	}
 
-	return s3Connection{c.newS3Handler(region), bucket, key}, nil
+	return s3Connection{c.newS3Handler(c.ctx, region), bucket, key}, nil
 }
 
 // getRegionForBucket looks up the region name for the given bucket
-func getRegionForBucket(svc s3Handler, name string) (string, error) {
+func getRegionForBucket(ctx context.Context, svc s3Handler, name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
 	params := s3.GetBucketLocationInput{
 		Bucket: aws.String(name),
 	}
-	resp, err := svc.GetBucketLocation(&params)
+	resp, err := svc.GetBucketLocation(ctx, &params)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get location for bucket '%s', %s", name, err)
+		return "", fmt.Errorf("failed to get location for bucket '%s', %s", name, err)
 	}
-	if resp.LocationConstraint == nil {
-		// "US Standard", returns an empty region, which means us-east-1
-		// See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETlocation.html
-		return defaultLocation, nil
-	}
-	return *resp.LocationConstraint, nil
+	return string(resp.LocationConstraint), nil
 }
 
 type liveS3Handler struct {
-	liveS3 *s3.S3
+	liveS3 S3API
 }
 
-func (m *liveS3Handler) GetBucketLocation(input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
-	return m.liveS3.GetBucketLocation(input)
+func (m *liveS3Handler) GetBucketLocation(ctx context.Context, input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
+	return m.liveS3.GetBucketLocation(ctx, input)
 }
 
-func (m *liveS3Handler) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
-	return m.liveS3.GetObject(input)
+func (m *liveS3Handler) GetObject(ctx context.Context, input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
+	return m.liveS3.GetObject(ctx, input)
 }
 
-func (m *liveS3Handler) DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error) {
-	return m.liveS3.DeleteObject(input)
+func (m *liveS3Handler) DeleteObject(ctx context.Context, input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error) {
+	return m.liveS3.DeleteObject(ctx, input)
 }
 
-func (m *liveS3Handler) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
-	return m.liveS3.PutObject(input)
+func (m *liveS3Handler) PutObject(ctx context.Context, input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	return m.liveS3.PutObject(ctx, input)
 }
 
-func (m *liveS3Handler) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
-	return m.liveS3.ListObjects(input)
+func (m *liveS3Handler) ListObjects(ctx context.Context, input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error) {
+	return m.liveS3.ListObjectsV2(ctx, input)
 }
 
-func (m *liveS3Handler) HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {
-	return m.liveS3.HeadObject(input)
+func (m *liveS3Handler) HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {
+	return m.liveS3.HeadObject(ctx, input)
 }
 
-func (c *Client) newS3Handler(region string) *liveS3Handler {
+func (c *Client) newS3Handler(ctx context.Context, region string) *liveS3Handler {
 	if c.providedConfig != nil {
 		return &liveS3Handler{
-			liveS3: s3.New(session.New(), c.providedConfig.WithRegion(region).WithS3ForcePathStyle(true)),
+			liveS3: s3.NewFromConfig(*c.providedConfig, func(o *s3.Options) {
+				o.Region = region
+				o.UsePathStyle = true
+			}),
 		}
 	}
 
-	config := aws.NewConfig().WithRegion(region).WithS3ForcePathStyle(true)
-	session := session.New()
-	return &liveS3Handler{s3.New(session, config)}
+	awsConfig, err := awsV2Config.LoadDefaultConfig(ctx, awsV2Config.WithRegion(region))
+	if err != nil {
+		log.Fatal(fmt.Sprintf("aws v2 config error: %s", err.Error()))
+	}
+
+	return &liveS3Handler{s3.NewFromConfig(awsConfig)}
 }
