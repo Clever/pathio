@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -39,10 +39,10 @@ func TestParseInvalidS3Path(t *testing.T) {
 
 func TestFileReader(t *testing.T) {
 	// Create a temporary file and write some data to it
-	file, err := ioutil.TempFile("/tmp", "pathioFileReaderTest")
+	file, err := os.CreateTemp("/tmp", "pathioFileReaderTest")
 	assert.Nil(t, err)
 	text := "fileReaderTest"
-	ioutil.WriteFile(file.Name(), []byte(text), 0644)
+	_ = os.WriteFile(file.Name(), []byte(text), 0644)
 
 	reader, err := Reader(file.Name())
 	assert.Nil(t, err)
@@ -52,12 +52,12 @@ func TestFileReader(t *testing.T) {
 }
 
 func TestWriteToFilePath(t *testing.T) {
-	file, err := ioutil.TempFile("/tmp", "writeToPathTest")
+	file, err := os.CreateTemp("/tmp", "writeToPathTest")
 	assert.Nil(t, err)
 	defer os.Remove(file.Name())
 
 	assert.Nil(t, Write(file.Name(), []byte("testout")))
-	output, err := ioutil.ReadFile(file.Name())
+	output, err := os.ReadFile(file.Name())
 	assert.Nil(t, err)
 	assert.Equal(t, "testout", string(output))
 }
@@ -102,7 +102,7 @@ func TestS3Calls(t *testing.T) {
 			desc: "S3FileReaderSuccess",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				bucket, key, value := "bucket", "key", "value"
-				reader := ioutil.NopCloser(bytes.NewBuffer([]byte(value)))
+				reader := io.NopCloser(bytes.NewBuffer([]byte(value)))
 				output := s3.GetObjectOutput{Body: reader}
 				params := s3.GetObjectInput{
 					Bucket: aws.String(bucket),
@@ -111,7 +111,8 @@ func TestS3Calls(t *testing.T) {
 				svc.EXPECT().GetObject(gomock.Any(), &params).Return(&output, nil)
 				foundReader, _ := s3FileReader(context.TODO(), s3Connection{svc, bucket, key})
 				body := make([]byte, len(value))
-				foundReader.Read(body)
+				_, err := foundReader.Read(body)
+				assert.NoError(t, err)
 				assert.Equal(t, string(body), value)
 			},
 		},
@@ -185,10 +186,10 @@ func TestS3Calls(t *testing.T) {
 				bucket, key := "bucket", "key"
 				output := s3.ListObjectsOutput{
 					Contents: []s3Types.Object{
-						s3Types.Object{Key: aws.String("file1")},
+						{Key: aws.String("file1")},
 					},
 					CommonPrefixes: []s3Types.CommonPrefix{
-						s3Types.CommonPrefix{Prefix: aws.String("prefix/")},
+						{Prefix: aws.String("prefix/")},
 					},
 					IsTruncated: aws.Bool(false),
 				}
@@ -211,34 +212,34 @@ func TestS3Calls(t *testing.T) {
 				bucket, key := "bucket", "key"
 
 				output := []s3.ListObjectsOutput{
-					s3.ListObjectsOutput{
+					{
 						Contents: []s3Types.Object{
-							s3Types.Object{Key: aws.String("file1")},
+							{Key: aws.String("file1")},
 						},
 						CommonPrefixes: []s3Types.CommonPrefix{
-							s3Types.CommonPrefix{Prefix: aws.String("prefix/")},
-							s3Types.CommonPrefix{Prefix: aws.String("prefix2/")},
+							{Prefix: aws.String("prefix/")},
+							{Prefix: aws.String("prefix2/")},
 						},
 						IsTruncated: aws.Bool(true),
 					},
-					s3.ListObjectsOutput{
+					{
 						Contents: []s3Types.Object{
-							s3Types.Object{Key: aws.String("file2")},
+							{Key: aws.String("file2")},
 						},
 						CommonPrefixes: []s3Types.CommonPrefix{
-							s3Types.CommonPrefix{Prefix: aws.String("prefix2/")},
+							{Prefix: aws.String("prefix2/")},
 						},
 						IsTruncated: aws.Bool(false),
 					},
 				}
 
 				params := []s3.ListObjectsInput{
-					s3.ListObjectsInput{
+					{
 						Bucket:    aws.String(bucket),
 						Prefix:    aws.String(key),
 						Delimiter: aws.String("/"),
 					},
-					s3.ListObjectsInput{
+					{
 						Bucket:    aws.String(bucket),
 						Prefix:    aws.String(key),
 						Delimiter: aws.String("/"),

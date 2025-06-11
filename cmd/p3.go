@@ -6,8 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/Clever/pathio/v5"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/Clever/pathio/v5"
 )
 
 var (
@@ -18,26 +19,24 @@ var (
 
 func main() {
 	kingpin.Parse()
-	if *action == "upload" {
+	switch *action {
+	case "upload":
 		file, err := os.Open(*localPath)
 		if err != nil {
 			log.Fatalf("Error opening file to upload: %s", err)
 		}
 		defer file.Close()
-
 		err = pathio.WriteReader(*s3Path, file)
 		if err != nil {
 			log.Fatalf("Error uploading file: %s", err)
 		}
 		fmt.Printf("File uploaded to %s\n", *s3Path)
-
-	} else if *action == "download" {
+	case "download":
 		file, err := os.Create(*localPath)
 		if err != nil {
 			log.Fatalf("Error creating local file: %s", err)
 		}
 		defer file.Close()
-
 		reader, err := pathio.Reader(*s3Path)
 		if err != nil {
 			log.Fatalf("Failed to find s3 file: %s", err)
@@ -48,8 +47,7 @@ func main() {
 			log.Fatalf("Failed to download and write s3 file: %s", err)
 		}
 		fmt.Printf("Downloaded %s to %s\n", *s3Path, *localPath)
-
-	} else {
+	default:
 		log.Fatalf("Unknown action: '%s'. Must be either 'upload' or 'download'.", *action)
 	}
 }

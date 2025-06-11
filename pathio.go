@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -155,7 +154,7 @@ func (c *Client) Write(path string, input []byte) error {
 // output path. The path can either a local file path or an S3 path.
 func (c *Client) WriteReader(path string, input io.ReadSeeker) error {
 	// return the file pointer to the start before reading from it when writing
-	if offset, err := input.Seek(0, os.SEEK_SET); err != nil || offset != 0 {
+	if offset, err := input.Seek(0, io.SeekStart); err != nil || offset != 0 {
 		return fmt.Errorf("failed to reset the file pointer to 0. offset: %d; error %s", offset, err)
 	}
 
@@ -243,7 +242,7 @@ func lsS3(ctx context.Context, s3Conn s3Connection) ([]string, error) {
 		Prefix:    aws.String(s3Conn.key),
 		Delimiter: aws.String("/"),
 	}
-	finalResults := []string{}
+	var finalResults []string
 
 	// s3 ListObjects limits the respose to 1000 objects and marks as truncated if there were more
 	// In this case we set a Marker that the next query will start from.
@@ -284,7 +283,7 @@ func elementInSlice(slice []string, elem string) bool {
 }
 
 func lsLocal(path string) ([]string, error) {
-	resp, err := ioutil.ReadDir(path)
+	resp, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +351,7 @@ func parseS3Path(path string) (string, string, error) {
 	// S3 path names are of the form s3://bucket/key
 	stringsArray := strings.SplitN(path, "/", 4)
 	if len(stringsArray) < 4 {
-		return "", "", fmt.Errorf("Invalid s3 path %s", path)
+		return "", "", fmt.Errorf("invalid s3 path %s", path)
 	}
 	bucketName := stringsArray[2]
 	// Everything after the third slash is the key
@@ -433,7 +432,7 @@ func (c *Client) newS3Handler(ctx context.Context, region string) *liveS3Handler
 
 	awsConfig, err := awsV2Config.LoadDefaultConfig(ctx, awsV2Config.WithRegion(region))
 	if err != nil {
-		log.Fatal(fmt.Sprintf("aws v2 config error: %s", err.Error()))
+		log.Fatalf("aws v2 config error: %s", err.Error())
 	}
 
 	return &liveS3Handler{s3.NewFromConfig(awsConfig)}
