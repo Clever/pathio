@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsV2Config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
@@ -104,13 +105,14 @@ func Exists(path string) (bool, error) {
 
 // S3API defines the interfaces that pathio needs for AWS access.
 type S3API interface {
+	s3.HeadBucketAPIClient // embedded for s3's HeadBucket()
 	GetBucketLocation(ctx context.Context, params *s3.GetBucketLocationInput, optFns ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error)
-	ListObjectsV2(context.Context, *s3.ListObjectsV2Input, ...func(*s3.Options)) (*s3.ListObjectsV2Output, error)
-	HeadObject(context.Context, *s3.HeadObjectInput, ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
 
-	GetObject(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error)
+	s3.ListObjectsV2APIClient // embedded for s3's ListObjectsV2()
+	s3.HeadObjectAPIClient    // embedded for s3's HeadObject()
+	manager.DownloadAPIClient // embedded for s3's GetObject()
 
-	PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	manager.UploadAPIClient // embedded for s3's PutObject()
 	DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
 }
 
@@ -121,7 +123,10 @@ type s3Handler interface {
 	DeleteObject(ctx context.Context, input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error)
 	PutObject(ctx context.Context, input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 	ListObjects(ctx context.Context, input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
+	// ListAllObjects will construct and use a ListObjectsV2 Paginator to fetch all results based on the supplied ListObjectsV2Input
+	ListAllObjects(ctx context.Context, input *s3.ListObjectsV2Input) ([]*s3.ListObjectsV2Output, error)
 	HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
+	HeadBucket(ctx context.Context, input *s3.HeadBucketInput) (*s3.HeadBucketOutput, error)
 }
 
 type s3Connection struct {
@@ -244,31 +249,25 @@ func lsS3(ctx context.Context, s3Conn s3Connection) ([]string, error) {
 	}
 	var finalResults []string
 
-	// s3 ListObjects limits the respose to 1000 objects and marks as truncated if there were more
+	// s3 ListObjects limits the response to 1000 objects and marks as truncated if there were more
 	// In this case we set a Marker that the next query will start from.
 	// We also ensure that prefixes are not duplicated
-	for {
-		resp, err := s3Conn.handler.ListObjects(ctx, &params)
-		if err != nil {
-			return nil, err
+	pages, err := s3Conn.handler.ListAllObjects(ctx, &params)
+	if err != nil {
+		return nil, err
+	}
+	for _, page := range pages {
+		if len(page.CommonPrefixes) > 0 && elementInSlice(finalResults, *page.CommonPrefixes[0].Prefix) {
+			page.CommonPrefixes = page.CommonPrefixes[1:]
 		}
-		if len(resp.CommonPrefixes) > 0 && elementInSlice(finalResults, *resp.CommonPrefixes[0].Prefix) {
-			resp.CommonPrefixes = resp.CommonPrefixes[1:]
-		}
-		results := make([]string, len(resp.Contents)+len(resp.CommonPrefixes))
-		for i, val := range resp.CommonPrefixes {
+		results := make([]string, len(page.Contents)+len(page.CommonPrefixes))
+		for i, val := range page.CommonPrefixes {
 			results[i] = *val.Prefix
 		}
-		for i, val := range resp.Contents {
-			results[i+len(resp.CommonPrefixes)] = *val.Key
+		for i, val := range page.Contents {
+			results[i+len(page.CommonPrefixes)] = *val.Key
 		}
 		finalResults = append(finalResults, results...)
-
-		if resp.IsTruncated != nil && *resp.IsTruncated {
-			params.ContinuationToken = resp.ContinuationToken
-		} else {
-			break
-		}
 	}
 	return finalResults, nil
 }
@@ -382,22 +381,32 @@ func (c *Client) s3ConnectionInformation(path, region string) (s3Connection, err
 func getRegionForBucket(ctx context.Context, svc s3Handler, name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
-	params := s3.GetBucketLocationInput{
+	params := s3.HeadBucketInput{
 		Bucket: aws.String(name),
 	}
-	resp, err := svc.GetBucketLocation(ctx, &params)
+	resp, err := svc.HeadBucket(ctx, &params)
 	if err != nil {
 		return "", fmt.Errorf("failed to get location for bucket '%s', %s", name, err)
 	}
-	return string(resp.LocationConstraint), nil
+	if resp.BucketRegion == nil {
+		return defaultLocation, nil
+	}
+	return *resp.BucketRegion, nil
 }
 
 type liveS3Handler struct {
 	liveS3 S3API
 }
 
+// GetBucketLocation returns the Region the bucket resides in.
+//
+// Deprecated: GetBucketLocation is deprecated in favor of HeadBucket for retrieving a Bucket's region.
 func (m *liveS3Handler) GetBucketLocation(ctx context.Context, input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
 	return m.liveS3.GetBucketLocation(ctx, input)
+}
+
+func (m *liveS3Handler) HeadBucket(ctx context.Context, input *s3.HeadBucketInput) (*s3.HeadBucketOutput, error) {
+	return m.liveS3.HeadBucket(ctx, input)
 }
 
 func (m *liveS3Handler) GetObject(ctx context.Context, input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
@@ -414,6 +423,24 @@ func (m *liveS3Handler) PutObject(ctx context.Context, input *s3.PutObjectInput)
 
 func (m *liveS3Handler) ListObjects(ctx context.Context, input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error) {
 	return m.liveS3.ListObjectsV2(ctx, input)
+}
+
+// ListAllObjects will utilize a ListObjectsV2Paginator to collate all responses
+func (m *liveS3Handler) ListAllObjects(ctx context.Context, input *s3.ListObjectsV2Input) ([]*s3.ListObjectsV2Output, error) {
+	// code reference: https://github.com/aws/aws-sdk-go-v2/blob/example/service/s3/listObjects/v0.2.9/example/service/s3/listObjects/listObjects.go
+	var pages []*s3.ListObjectsV2Output
+	pager := s3.NewListObjectsV2Paginator(m.liveS3, input)
+
+	for pager.HasMorePages() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		pages = append(pages, page)
+	}
+
+	return pages, nil
 }
 
 func (m *liveS3Handler) HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {

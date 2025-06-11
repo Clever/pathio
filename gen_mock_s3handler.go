@@ -146,6 +146,66 @@ func (m *MockS3API) EXPECT() *MockS3APIMockRecorder {
 	return m.recorder
 }
 
+// AbortMultipartUpload mocks base method.
+func (m *MockS3API) AbortMultipartUpload(arg0 context.Context, arg1 *s3.AbortMultipartUploadInput, arg2 ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "AbortMultipartUpload", varargs...)
+	ret0, _ := ret[0].(*s3.AbortMultipartUploadOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AbortMultipartUpload indicates an expected call of AbortMultipartUpload.
+func (mr *MockS3APIMockRecorder) AbortMultipartUpload(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AbortMultipartUpload", reflect.TypeOf((*MockS3API)(nil).AbortMultipartUpload), varargs...)
+}
+
+// CompleteMultipartUpload mocks base method.
+func (m *MockS3API) CompleteMultipartUpload(arg0 context.Context, arg1 *s3.CompleteMultipartUploadInput, arg2 ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CompleteMultipartUpload", varargs...)
+	ret0, _ := ret[0].(*s3.CompleteMultipartUploadOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CompleteMultipartUpload indicates an expected call of CompleteMultipartUpload.
+func (mr *MockS3APIMockRecorder) CompleteMultipartUpload(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteMultipartUpload", reflect.TypeOf((*MockS3API)(nil).CompleteMultipartUpload), varargs...)
+}
+
+// CreateMultipartUpload mocks base method.
+func (m *MockS3API) CreateMultipartUpload(arg0 context.Context, arg1 *s3.CreateMultipartUploadInput, arg2 ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateMultipartUpload", varargs...)
+	ret0, _ := ret[0].(*s3.CreateMultipartUploadOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateMultipartUpload indicates an expected call of CreateMultipartUpload.
+func (mr *MockS3APIMockRecorder) CreateMultipartUpload(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateMultipartUpload", reflect.TypeOf((*MockS3API)(nil).CreateMultipartUpload), varargs...)
+}
+
 // DeleteObject mocks base method.
 func (m *MockS3API) DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
 	m.ctrl.T.Helper()
@@ -206,6 +266,26 @@ func (mr *MockS3APIMockRecorder) GetObject(arg0, arg1 interface{}, arg2 ...inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*MockS3API)(nil).GetObject), varargs...)
 }
 
+// HeadBucket mocks base method.
+func (m *MockS3API) HeadBucket(arg0 context.Context, arg1 *s3.HeadBucketInput, arg2 ...func(*s3.Options)) (*s3.HeadBucketOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "HeadBucket", varargs...)
+	ret0, _ := ret[0].(*s3.HeadBucketOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HeadBucket indicates an expected call of HeadBucket.
+func (mr *MockS3APIMockRecorder) HeadBucket(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadBucket", reflect.TypeOf((*MockS3API)(nil).HeadBucket), varargs...)
+}
+
 // HeadObject mocks base method.
 func (m *MockS3API) HeadObject(arg0 context.Context, arg1 *s3.HeadObjectInput, arg2 ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
 	m.ctrl.T.Helper()
@@ -264,6 +344,26 @@ func (mr *MockS3APIMockRecorder) PutObject(arg0, arg1 interface{}, arg2 ...inter
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutObject", reflect.TypeOf((*MockS3API)(nil).PutObject), varargs...)
+}
+
+// UploadPart mocks base method.
+func (m *MockS3API) UploadPart(arg0 context.Context, arg1 *s3.UploadPartInput, arg2 ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UploadPart", varargs...)
+	ret0, _ := ret[0].(*s3.UploadPartOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UploadPart indicates an expected call of UploadPart.
+func (mr *MockS3APIMockRecorder) UploadPart(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadPart", reflect.TypeOf((*MockS3API)(nil).UploadPart), varargs...)
 }
 
 // Mocks3Handler is a mock of s3Handler interface.
@@ -334,6 +434,21 @@ func (mr *Mocks3HandlerMockRecorder) GetObject(ctx, input interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*Mocks3Handler)(nil).GetObject), ctx, input)
 }
 
+// HeadBucket mocks base method.
+func (m *Mocks3Handler) HeadBucket(ctx context.Context, input *s3.HeadBucketInput) (*s3.HeadBucketOutput, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HeadBucket", ctx, input)
+	ret0, _ := ret[0].(*s3.HeadBucketOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HeadBucket indicates an expected call of HeadBucket.
+func (mr *Mocks3HandlerMockRecorder) HeadBucket(ctx, input interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadBucket", reflect.TypeOf((*Mocks3Handler)(nil).HeadBucket), ctx, input)
+}
+
 // HeadObject mocks base method.
 func (m *Mocks3Handler) HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error) {
 	m.ctrl.T.Helper()
@@ -347,6 +462,21 @@ func (m *Mocks3Handler) HeadObject(ctx context.Context, input *s3.HeadObjectInpu
 func (mr *Mocks3HandlerMockRecorder) HeadObject(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadObject", reflect.TypeOf((*Mocks3Handler)(nil).HeadObject), ctx, input)
+}
+
+// ListAllObjects mocks base method.
+func (m *Mocks3Handler) ListAllObjects(ctx context.Context, input *s3.ListObjectsV2Input) ([]*s3.ListObjectsV2Output, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAllObjects", ctx, input)
+	ret0, _ := ret[0].([]*s3.ListObjectsV2Output)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAllObjects indicates an expected call of ListAllObjects.
+func (mr *Mocks3HandlerMockRecorder) ListAllObjects(ctx, input interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAllObjects", reflect.TypeOf((*Mocks3Handler)(nil).ListAllObjects), ctx, input)
 }
 
 // ListObjects mocks base method.
