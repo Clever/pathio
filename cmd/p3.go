@@ -39,17 +39,13 @@ var (
 	toPath       = writeCommand.Arg("destination_path", "the local file path or S3 path to be written to").Required().String()
 )
 
-// WithSharedProfileConfig is a small wrapper to make the aws profile flag optional. If the flag is used, the s3 client will use this shared profile to authenticate to aws
-func WithSharedProfileConfig(profile *string) awsV2Config.LoadOptionsFunc {
-	if profile == nil || *profile == "" {
-		return nil
-	}
-	return awsV2Config.WithSharedConfigProfile(*profile)
-}
-
-func makePathioS3Client() *pathio.Client {
+func newPathioClientWithS3() *pathio.Client {
 	ctx := context.Background()
-	cfg, err := awsV2Config.LoadDefaultConfig(ctx, WithSharedProfileConfig(awsProfile))
+	var optFns []func(*awsV2Config.LoadOptions) error
+	if awsProfile != nil {
+		optFns = append(optFns, awsV2Config.WithSharedConfigProfile(*awsProfile))
+	}
+	cfg, err := awsV2Config.LoadDefaultConfig(ctx, optFns...)
 	if err != nil {
 		log.Fatalf("error building p3 aws config: %v", err)
 	}
@@ -86,7 +82,7 @@ func main() {
 func listCommandFn() {
 	var client pathio.Pathio
 	if strings.HasPrefix(*listPath, "s3://") {
-		client = makePathioS3Client()
+		client = newPathioClientWithS3()
 	} else {
 		client = pathio.DefaultClient
 	}
@@ -101,7 +97,7 @@ func listCommandFn() {
 }
 
 func downloadCommandFn() {
-	client := makePathioS3Client()
+	client := newPathioClientWithS3()
 
 	file, err := os.Create(*downloadLocalPath)
 	if err != nil {
@@ -121,7 +117,7 @@ func downloadCommandFn() {
 }
 
 func uploadCommandFn() {
-	client := makePathioS3Client()
+	client := newPathioClientWithS3()
 
 	file, err := os.Open(*uploadLocalPath)
 	if err != nil {
@@ -138,7 +134,7 @@ func uploadCommandFn() {
 func deleteCommandFn() {
 	var client pathio.Pathio
 	if strings.HasPrefix(*deletePath, "s3://") {
-		client = makePathioS3Client()
+		client = newPathioClientWithS3()
 	} else {
 		client = pathio.DefaultClient
 	}
@@ -153,7 +149,7 @@ func deleteCommandFn() {
 func existsCommandFn() {
 	var client pathio.Pathio
 	if strings.HasPrefix(*existsPath, "s3://") {
-		client = makePathioS3Client()
+		client = newPathioClientWithS3()
 	} else {
 		client = pathio.DefaultClient
 	}
@@ -172,7 +168,7 @@ func existsCommandFn() {
 func writeCommandFn() {
 	var client pathio.Pathio
 	if strings.HasPrefix(*toPath, "s3://") {
-		client = makePathioS3Client()
+		client = newPathioClientWithS3()
 	} else {
 		client = pathio.DefaultClient
 	}
