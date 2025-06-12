@@ -71,9 +71,9 @@ func TestS3Calls(t *testing.T) {
 			desc: "GetRegionForBucketSuccess",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				name, region := "bucket", "region"
-				output := s3.HeadBucketOutput{BucketRegion: &region}
-				params := s3.HeadBucketInput{Bucket: aws.String(name)}
-				svc.EXPECT().HeadBucket(gomock.Any(), &params).Return(&output, nil)
+				output := s3.GetBucketLocationOutput{LocationConstraint: s3Types.BucketLocationConstraint(region)}
+				params := s3.GetBucketLocationInput{Bucket: aws.String(name)}
+				svc.EXPECT().GetBucketLocation(gomock.Any(), &params).Return(&output, nil)
 				foundRegion, _ := getRegionForBucket(context.TODO(), svc, name)
 				assert.Equal(t, region, foundRegion)
 			},
@@ -82,8 +82,8 @@ func TestS3Calls(t *testing.T) {
 			desc: "GetRegionForBucketDefault",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				name := "bucket"
-				output := s3.HeadBucketOutput{BucketRegion: nil}
-				svc.EXPECT().HeadBucket(gomock.Any(), gomock.Any()).Return(&output, nil)
+				output := s3.GetBucketLocationOutput{LocationConstraint: ""}
+				svc.EXPECT().GetBucketLocation(gomock.Any(), gomock.Any()).Return(&output, nil)
 				foundRegion, _ := getRegionForBucket(context.TODO(), svc, name)
 				assert.Equal(t, "us-east-1", foundRegion)
 			},
@@ -92,8 +92,8 @@ func TestS3Calls(t *testing.T) {
 			desc: "GetRegionForBucketError",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				name, err := "bucket", "Error!"
-				output := s3.HeadBucketOutput{BucketRegion: nil}
-				svc.EXPECT().HeadBucket(gomock.Any(), gomock.Any()).Return(&output, errors.New(err))
+				output := s3.GetBucketLocationOutput{LocationConstraint: ""}
+				svc.EXPECT().GetBucketLocation(gomock.Any(), gomock.Any()).Return(&output, errors.New(err))
 				_, foundErr := getRegionForBucket(context.TODO(), svc, name)
 				assert.Equal(t, foundErr, fmt.Errorf("failed to get location for bucket '%s', %s", name, err))
 			},

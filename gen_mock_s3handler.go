@@ -266,26 +266,6 @@ func (mr *MockS3APIMockRecorder) GetObject(arg0, arg1 interface{}, arg2 ...inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*MockS3API)(nil).GetObject), varargs...)
 }
 
-// HeadBucket mocks base method.
-func (m *MockS3API) HeadBucket(arg0 context.Context, arg1 *s3.HeadBucketInput, arg2 ...func(*s3.Options)) (*s3.HeadBucketOutput, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "HeadBucket", varargs...)
-	ret0, _ := ret[0].(*s3.HeadBucketOutput)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HeadBucket indicates an expected call of HeadBucket.
-func (mr *MockS3APIMockRecorder) HeadBucket(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadBucket", reflect.TypeOf((*MockS3API)(nil).HeadBucket), varargs...)
-}
-
 // HeadObject mocks base method.
 func (m *MockS3API) HeadObject(arg0 context.Context, arg1 *s3.HeadObjectInput, arg2 ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
 	m.ctrl.T.Helper()
@@ -432,21 +412,6 @@ func (m *Mocks3Handler) GetObject(ctx context.Context, input *s3.GetObjectInput)
 func (mr *Mocks3HandlerMockRecorder) GetObject(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*Mocks3Handler)(nil).GetObject), ctx, input)
-}
-
-// HeadBucket mocks base method.
-func (m *Mocks3Handler) HeadBucket(ctx context.Context, input *s3.HeadBucketInput) (*s3.HeadBucketOutput, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeadBucket", ctx, input)
-	ret0, _ := ret[0].(*s3.HeadBucketOutput)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HeadBucket indicates an expected call of HeadBucket.
-func (mr *Mocks3HandlerMockRecorder) HeadBucket(ctx, input interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadBucket", reflect.TypeOf((*Mocks3Handler)(nil).HeadBucket), ctx, input)
 }
 
 // HeadObject mocks base method.

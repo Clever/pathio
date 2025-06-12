@@ -105,7 +105,6 @@ func Exists(path string) (bool, error) {
 
 // S3API defines the interfaces that pathio needs for AWS access.
 type S3API interface {
-	s3.HeadBucketAPIClient // embedded for s3's HeadBucket()
 	GetBucketLocation(ctx context.Context, params *s3.GetBucketLocationInput, optFns ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error)
 
 	s3.ListObjectsV2APIClient // embedded for s3's ListObjectsV2()
@@ -126,7 +125,6 @@ type s3Handler interface {
 	// ListAllObjects will construct and use a ListObjectsV2 Paginator to fetch all results based on the supplied ListObjectsV2Input
 	ListAllObjects(ctx context.Context, input *s3.ListObjectsV2Input) ([]*s3.ListObjectsV2Output, error)
 	HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
-	HeadBucket(ctx context.Context, input *s3.HeadBucketInput) (*s3.HeadBucketOutput, error)
 }
 
 type s3Connection struct {
@@ -381,32 +379,25 @@ func (c *Client) s3ConnectionInformation(path, region string) (s3Connection, err
 func getRegionForBucket(ctx context.Context, svc s3Handler, name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
-	params := s3.HeadBucketInput{
+	params := s3.GetBucketLocationInput{
 		Bucket: aws.String(name),
 	}
-	resp, err := svc.HeadBucket(ctx, &params)
+	resp, err := svc.GetBucketLocation(ctx, &params)
 	if err != nil {
 		return "", fmt.Errorf("failed to get location for bucket '%s', %s", name, err)
 	}
-	if resp.BucketRegion == nil {
+	if resp.LocationConstraint == "" {
 		return defaultLocation, nil
 	}
-	return *resp.BucketRegion, nil
+	return string(resp.LocationConstraint), nil
 }
 
 type liveS3Handler struct {
 	liveS3 S3API
 }
 
-// GetBucketLocation returns the Region the bucket resides in.
-//
-// Deprecated: GetBucketLocation is deprecated in favor of HeadBucket for retrieving a Bucket's region.
 func (m *liveS3Handler) GetBucketLocation(ctx context.Context, input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
 	return m.liveS3.GetBucketLocation(ctx, input)
-}
-
-func (m *liveS3Handler) HeadBucket(ctx context.Context, input *s3.HeadBucketInput) (*s3.HeadBucketOutput, error) {
-	return m.liveS3.HeadBucket(ctx, input)
 }
 
 func (m *liveS3Handler) GetObject(ctx context.Context, input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
