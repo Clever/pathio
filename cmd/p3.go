@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
 	awsV2Config "github.com/aws/aws-sdk-go-v2/config"
@@ -46,41 +47,50 @@ func WithSharedProfileConfig(profile *string) awsV2Config.LoadOptionsFunc {
 	return awsV2Config.WithSharedConfigProfile(*profile)
 }
 
-func main() {
-	command := kingpin.Parse()
-
+func makePathioS3Client() *pathio.Client {
 	ctx := context.Background()
 	cfg, err := awsV2Config.LoadDefaultConfig(ctx, WithSharedProfileConfig(awsProfile))
 	if err != nil {
 		log.Fatalf("error building p3 aws config: %v", err)
 	}
-	client := pathio.NewClient(ctx, &cfg)
+	return pathio.NewClient(ctx, &cfg)
+}
+
+func main() {
+	command := kingpin.Parse()
 
 	switch command {
 	// Pathio's ListFiles
 	case listCommand.FullCommand():
-		listCommandFn(client)
+		listCommandFn()
 	// Pathio's Reader
 	case downloadCommand.FullCommand():
-		downloadCommandFn(client)
+		downloadCommandFn()
 	// Pathio's WriteReader
 	case uploadCommand.FullCommand():
-		uploadCommandFn(client)
+		uploadCommandFn()
 	// Pathio's Delete
 	case deleteCommand.FullCommand():
-		deleteCommandFn(client)
+		deleteCommandFn()
 	// Pathio's Exists
 	case existsCommand.FullCommand():
-		existsCommandFn(client)
+		existsCommandFn()
 	// Pathio's Write
 	case writeCommand.FullCommand():
-		writeCommandFn(client)
+		writeCommandFn()
 	default:
 		log.Fatalf("unknown command: %s", command)
 	}
 }
 
-func listCommandFn(client *pathio.Client) {
+func listCommandFn() {
+	var client pathio.Pathio
+	if strings.HasPrefix(*listPath, "s3://") {
+		client = makePathioS3Client()
+	} else {
+		client = pathio.DefaultClient
+	}
+
 	results, err := client.ListFiles(*listPath)
 	if err != nil {
 		log.Fatalf("error list file path: %s", err)
@@ -90,7 +100,9 @@ func listCommandFn(client *pathio.Client) {
 	}
 }
 
-func downloadCommandFn(client *pathio.Client) {
+func downloadCommandFn() {
+	client := makePathioS3Client()
+
 	file, err := os.Create(*downloadLocalPath)
 	if err != nil {
 		log.Fatalf("Error creating local file: %s", err)
@@ -108,7 +120,9 @@ func downloadCommandFn(client *pathio.Client) {
 	fmt.Printf("Downloaded %s to %s\n", *downloadS3Path, *downloadLocalPath)
 }
 
-func uploadCommandFn(client *pathio.Client) {
+func uploadCommandFn() {
+	client := makePathioS3Client()
+
 	file, err := os.Open(*uploadLocalPath)
 	if err != nil {
 		log.Fatalf("Error opening file to upload: %s", err)
@@ -121,7 +135,14 @@ func uploadCommandFn(client *pathio.Client) {
 	fmt.Printf("Uploaded %s to %s\n", *uploadLocalPath, *uploadS3Path)
 }
 
-func deleteCommandFn(client *pathio.Client) {
+func deleteCommandFn() {
+	var client pathio.Pathio
+	if strings.HasPrefix(*deletePath, "s3://") {
+		client = makePathioS3Client()
+	} else {
+		client = pathio.DefaultClient
+	}
+
 	err := client.Delete(*deletePath)
 	if err != nil {
 		log.Fatalf("error deleting file: %s", err)
@@ -129,7 +150,14 @@ func deleteCommandFn(client *pathio.Client) {
 	fmt.Printf("Deleted %s successfully\n", *deletePath)
 }
 
-func existsCommandFn(client *pathio.Client) {
+func existsCommandFn() {
+	var client pathio.Pathio
+	if strings.HasPrefix(*existsPath, "s3://") {
+		client = makePathioS3Client()
+	} else {
+		client = pathio.DefaultClient
+	}
+
 	exists, err := client.Exists(*existsPath)
 	if err != nil {
 		log.Fatalf("error checking if file exists: %s", err)
@@ -141,7 +169,14 @@ func existsCommandFn(client *pathio.Client) {
 	}
 }
 
-func writeCommandFn(client *pathio.Client) {
+func writeCommandFn() {
+	var client pathio.Pathio
+	if strings.HasPrefix(*toPath, "s3://") {
+		client = makePathioS3Client()
+	} else {
+		client = pathio.DefaultClient
+	}
+
 	err := client.Write(*toPath, []byte(*contents))
 	if err != nil {
 		log.Fatalf("error checking if file exists: %s", err)
