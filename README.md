@@ -1,9 +1,10 @@
 # pathio
 
-[![GoDoc](https://godoc.org/github.com/Clever/pathio/v4?status.svg)](https://godoc.org/github.com/Clever/pathio/v4)
+[![GoDoc](https://godoc.org/github.com/Clever/pathio/v5?status.svg)](https://godoc.org/github.com/Clever/pathio/v5)
 
---
-    import "github.com/Clever/pathio/v4"
+```
+go get "github.com/Clever/pathio/v5"
+```
 
 Package pathio is a package that allows writing to and reading from different
 types of paths transparently. It supports two types of paths:
@@ -17,14 +18,16 @@ Note that using s3 paths requires setting two environment variables
     2. AWS_ACCESS_KEY_ID
 
 ## Usage
+
 Pathio has a very easy to use interface, with 5 main functions:
 
 ```
-import "github.com/Clever/pathio/v4"
+import "github.com/Clever/pathio/v5"
 var err error
 ```
 
 ### ListFiles
+
 ```
 // func ListFiles(path string) ([]string, error)
 files, err = pathio.ListFiles("s3://bucket/my/key") // s3
@@ -32,6 +35,7 @@ files, err = pathio.ListFiles("/home/me")           // local
 ```
 
 ### Write / WriteReader
+
 ```
 // func Write(path string, input []byte) error
 toWrite := []byte("hello world\n")
@@ -45,6 +49,7 @@ err = pathio.WriteReader("/home/me/hello_world", toWriteReader) // local
 ```
 
 ### Read
+
 ```
 // func Reader(path string) (rc io.ReadCloser, err error)
 reader, err = pathio.Reader("s3://bucket/key/to/read") // s3
@@ -52,6 +57,7 @@ reader, err = pathio.Reader("/home/me/file/to/read")   // local
 ```
 
 ### Delete
+
 ```
 // func Delete(path string) error
 err = pathio.Delete("s3://bucket/key/to/read") // s3

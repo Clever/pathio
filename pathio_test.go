@@ -3,14 +3,16 @@ package pathio
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,18 +31,18 @@ func TestParseS3Path(t *testing.T) {
 
 func TestParseInvalidS3Path(t *testing.T) {
 	_, _, err := parseS3Path("s3://")
-	assert.EqualError(t, err, "Invalid s3 path s3://")
+	assert.EqualError(t, err, "invalid s3 path s3://")
 
 	_, _, err = parseS3Path("s3://ag-ge")
-	assert.EqualError(t, err, "Invalid s3 path s3://ag-ge")
+	assert.EqualError(t, err, "invalid s3 path s3://ag-ge")
 }
 
 func TestFileReader(t *testing.T) {
 	// Create a temporary file and write some data to it
-	file, err := ioutil.TempFile("/tmp", "pathioFileReaderTest")
+	file, err := os.CreateTemp("/tmp", "pathioFileReaderTest")
 	assert.Nil(t, err)
 	text := "fileReaderTest"
-	ioutil.WriteFile(file.Name(), []byte(text), 0644)
+	_ = os.WriteFile(file.Name(), []byte(text), 0644)
 
 	reader, err := Reader(file.Name())
 	assert.Nil(t, err)
@@ -50,12 +52,12 @@ func TestFileReader(t *testing.T) {
 }
 
 func TestWriteToFilePath(t *testing.T) {
-	file, err := ioutil.TempFile("/tmp", "writeToPathTest")
+	file, err := os.CreateTemp("/tmp", "writeToPathTest")
 	assert.Nil(t, err)
 	defer os.Remove(file.Name())
 
 	assert.Nil(t, Write(file.Name(), []byte("testout")))
-	output, err := ioutil.ReadFile(file.Name())
+	output, err := os.ReadFile(file.Name())
 	assert.Nil(t, err)
 	assert.Equal(t, "testout", string(output))
 }
@@ -69,10 +71,10 @@ func TestS3Calls(t *testing.T) {
 			desc: "GetRegionForBucketSuccess",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				name, region := "bucket", "region"
-				output := s3.GetBucketLocationOutput{LocationConstraint: aws.String(region)}
+				output := s3.GetBucketLocationOutput{LocationConstraint: s3Types.BucketLocationConstraint(region)}
 				params := s3.GetBucketLocationInput{Bucket: aws.String(name)}
-				svc.EXPECT().GetBucketLocation(&params).Return(&output, nil)
-				foundRegion, _ := getRegionForBucket(svc, name)
+				svc.EXPECT().GetBucketLocation(gomock.Any(), &params).Return(&output, nil)
+				foundRegion, _ := getRegionForBucket(context.TODO(), svc, name)
 				assert.Equal(t, region, foundRegion)
 			},
 		},
@@ -80,9 +82,9 @@ func TestS3Calls(t *testing.T) {
 			desc: "GetRegionForBucketDefault",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				name := "bucket"
-				output := s3.GetBucketLocationOutput{LocationConstraint: nil}
-				svc.EXPECT().GetBucketLocation(gomock.Any()).Return(&output, nil)
-				foundRegion, _ := getRegionForBucket(svc, name)
+				output := s3.GetBucketLocationOutput{LocationConstraint: ""}
+				svc.EXPECT().GetBucketLocation(gomock.Any(), gomock.Any()).Return(&output, nil)
+				foundRegion, _ := getRegionForBucket(context.TODO(), svc, name)
 				assert.Equal(t, "us-east-1", foundRegion)
 			},
 		},
@@ -90,26 +92,27 @@ func TestS3Calls(t *testing.T) {
 			desc: "GetRegionForBucketError",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				name, err := "bucket", "Error!"
-				output := s3.GetBucketLocationOutput{LocationConstraint: nil}
-				svc.EXPECT().GetBucketLocation(gomock.Any()).Return(&output, errors.New(err))
-				_, foundErr := getRegionForBucket(svc, name)
-				assert.Equal(t, foundErr, fmt.Errorf("Failed to get location for bucket '%s', %s", name, err))
+				output := s3.GetBucketLocationOutput{LocationConstraint: ""}
+				svc.EXPECT().GetBucketLocation(gomock.Any(), gomock.Any()).Return(&output, errors.New(err))
+				_, foundErr := getRegionForBucket(context.TODO(), svc, name)
+				assert.Equal(t, foundErr, fmt.Errorf("failed to get location for bucket '%s', %s", name, err))
 			},
 		},
 		{
 			desc: "S3FileReaderSuccess",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				bucket, key, value := "bucket", "key", "value"
-				reader := ioutil.NopCloser(bytes.NewBuffer([]byte(value)))
+				reader := io.NopCloser(bytes.NewBuffer([]byte(value)))
 				output := s3.GetObjectOutput{Body: reader}
 				params := s3.GetObjectInput{
 					Bucket: aws.String(bucket),
 					Key:    aws.String(key),
 				}
-				svc.EXPECT().GetObject(&params).Return(&output, nil)
-				foundReader, _ := s3FileReader(s3Connection{svc, bucket, key})
+				svc.EXPECT().GetObject(gomock.Any(), &params).Return(&output, nil)
+				foundReader, _ := s3FileReader(context.TODO(), s3Connection{svc, bucket, key})
 				body := make([]byte, len(value))
-				foundReader.Read(body)
+				_, err := foundReader.Read(body)
+				assert.NoError(t, err)
 				assert.Equal(t, string(body), value)
 			},
 		},
@@ -122,8 +125,8 @@ func TestS3Calls(t *testing.T) {
 					Key:    aws.String(key),
 				}
 				output := s3.GetObjectOutput{}
-				svc.EXPECT().GetObject(&params).Return(&output, errors.New(err))
-				_, foundErr := s3FileReader(s3Connection{svc, bucket, key})
+				svc.EXPECT().GetObject(gomock.Any(), &params).Return(&output, errors.New(err))
+				_, foundErr := s3FileReader(context.TODO(), s3Connection{svc, bucket, key})
 				assert.Equal(t, foundErr.Error(), err)
 			},
 		},
@@ -137,10 +140,10 @@ func TestS3Calls(t *testing.T) {
 					Bucket:               aws.String(bucket),
 					Key:                  aws.String(key),
 					Body:                 input,
-					ServerSideEncryption: aws.String("AES256"),
+					ServerSideEncryption: "AES256",
 				}
-				svc.EXPECT().PutObject(&params).Return(&output, nil)
-				foundErr := writeToS3(s3Connection{svc, bucket, key}, input, false)
+				svc.EXPECT().PutObject(gomock.Any(), &params).Return(&output, nil)
+				foundErr := writeToS3(context.TODO(), s3Connection{svc, bucket, key}, input, false)
 				assert.Equal(t, foundErr, nil)
 			},
 		},
@@ -154,10 +157,10 @@ func TestS3Calls(t *testing.T) {
 					Bucket:               aws.String(bucket),
 					Key:                  aws.String(key),
 					Body:                 input,
-					ServerSideEncryption: aws.String("AES256"),
+					ServerSideEncryption: "AES256",
 				}
-				svc.EXPECT().PutObject(&params).Return(&output, errors.New(err))
-				foundErr := writeToS3(s3Connection{svc, bucket, key}, input, false)
+				svc.EXPECT().PutObject(gomock.Any(), &params).Return(&output, errors.New(err))
+				foundErr := writeToS3(context.TODO(), s3Connection{svc, bucket, key}, input, false)
 				assert.Equal(t, foundErr.Error(), err)
 			},
 		},
@@ -172,8 +175,8 @@ func TestS3Calls(t *testing.T) {
 					Key:    aws.String(key),
 					Body:   input,
 				}
-				svc.EXPECT().PutObject(&params).Return(&output, nil)
-				foundErr := writeToS3(s3Connection{svc, bucket, key}, input, true)
+				svc.EXPECT().PutObject(gomock.Any(), &params).Return(&output, nil)
+				foundErr := writeToS3(context.TODO(), s3Connection{svc, bucket, key}, input, true)
 				assert.Equal(t, foundErr, nil)
 			},
 		},
@@ -181,24 +184,26 @@ func TestS3Calls(t *testing.T) {
 			desc: "S3ListFiles",
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				bucket, key := "bucket", "key"
-				output := s3.ListObjectsOutput{
-					Contents: []*s3.Object{
-						&s3.Object{Key: aws.String("file1")},
+				output := []*s3.ListObjectsV2Output{
+					{
+						Contents: []s3Types.Object{
+							{Key: aws.String("file1")},
+						},
+						CommonPrefixes: []s3Types.CommonPrefix{
+							{Prefix: aws.String("prefix/")},
+						},
+						IsTruncated: aws.Bool(false),
 					},
-					CommonPrefixes: []*s3.CommonPrefix{
-						&s3.CommonPrefix{Prefix: aws.String("prefix/")},
-					},
-					IsTruncated: aws.Bool(false),
 				}
 
-				params := s3.ListObjectsInput{
+				params := s3.ListObjectsV2Input{
 					Bucket:    aws.String(bucket),
 					Prefix:    aws.String(key),
 					Delimiter: aws.String("/"),
 				}
 
-				svc.EXPECT().ListObjects(&params).Return(&output, nil)
-				files, err := lsS3(s3Connection{svc, bucket, key})
+				svc.EXPECT().ListAllObjects(gomock.Any(), &params).Return(output, nil)
+				files, err := lsS3(context.TODO(), s3Connection{svc, bucket, key})
 				assert.NoError(t, err)
 				assert.Equal(t, []string{"prefix/", "file1"}, files)
 			},
@@ -208,45 +213,38 @@ func TestS3Calls(t *testing.T) {
 			testCase: func(svc *Mocks3Handler, t *testing.T) {
 				bucket, key := "bucket", "key"
 
-				output := []s3.ListObjectsOutput{
-					s3.ListObjectsOutput{
-						Contents: []*s3.Object{
-							&s3.Object{Key: aws.String("file1")},
+				output := []*s3.ListObjectsV2Output{
+					{
+						Contents: []s3Types.Object{
+							{Key: aws.String("file1")},
 						},
-						CommonPrefixes: []*s3.CommonPrefix{
-							&s3.CommonPrefix{Prefix: aws.String("prefix/")},
-							&s3.CommonPrefix{Prefix: aws.String("prefix2/")},
+						CommonPrefixes: []s3Types.CommonPrefix{
+							{Prefix: aws.String("prefix/")},
+							{Prefix: aws.String("prefix2/")},
 						},
-						IsTruncated: aws.Bool(true),
+						IsTruncated:           aws.Bool(true),
+						NextContinuationToken: aws.String("file1"),
 					},
-					s3.ListObjectsOutput{
-						Contents: []*s3.Object{
-							&s3.Object{Key: aws.String("file2")},
+					{
+						Contents: []s3Types.Object{
+							{Key: aws.String("file2")},
 						},
-						CommonPrefixes: []*s3.CommonPrefix{
-							&s3.CommonPrefix{Prefix: aws.String("prefix2/")},
+						CommonPrefixes: []s3Types.CommonPrefix{
+							{Prefix: aws.String("prefix2/")},
 						},
 						IsTruncated: aws.Bool(false),
 					},
 				}
 
-				params := []s3.ListObjectsInput{
-					s3.ListObjectsInput{
-						Bucket:    aws.String(bucket),
-						Prefix:    aws.String(key),
-						Delimiter: aws.String("/"),
-					},
-					s3.ListObjectsInput{
-						Bucket:    aws.String(bucket),
-						Prefix:    aws.String(key),
-						Delimiter: aws.String("/"),
-						Marker:    aws.String("file1"),
-					},
+				params := s3.ListObjectsV2Input{
+					Bucket:    aws.String(bucket),
+					Prefix:    aws.String(key),
+					Delimiter: aws.String("/"),
 				}
 
-				svc.EXPECT().ListObjects(&params[0]).Return(&output[0], nil)
-				svc.EXPECT().ListObjects(&params[1]).Return(&output[1], nil)
-				files, err := lsS3(s3Connection{svc, bucket, key})
+				svc.EXPECT().ListAllObjects(gomock.Any(), &params).Return(output, nil)
+
+				files, err := lsS3(context.TODO(), s3Connection{svc, bucket, key})
 				assert.NoError(t, err)
 				assert.Equal(t, []string{"prefix/", "prefix2/", "file1", "file2"}, files)
 			},
