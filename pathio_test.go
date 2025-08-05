@@ -62,6 +62,120 @@ func TestWriteToFilePath(t *testing.T) {
 	assert.Equal(t, "testout", string(output))
 }
 
+func TestDefaultClientHasContext(t *testing.T) {
+	client := DefaultClient.(*Client)
+	assert.NotNil(t, client.ctx, "DefaultClient should have a valid context to prevent panics")
+}
+
+func TestS3ConnectionInformation(t *testing.T) {
+	testCases := []struct {
+		desc           string
+		path           string
+		region         string
+		expectedBucket string
+		expectedKey    string
+		expectedError  string
+	}{
+		{
+			desc:           "ValidS3PathWithRegion",
+			path:           "s3://test-bucket/path/to/file.txt",
+			region:         "us-west-2",
+			expectedBucket: "test-bucket",
+			expectedKey:    "path/to/file.txt",
+		},
+		{
+			desc:          "InvalidS3Path",
+			path:          "s3://invalid",
+			region:        "",
+			expectedError: "invalid s3 path s3://invalid",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := context.Background()
+			client := &Client{
+				ctx:            ctx,
+				providedConfig: &aws.Config{},
+			}
+
+			conn, err := client.s3ConnectionInformation(tc.path, tc.region)
+
+			if tc.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedBucket, conn.bucket)
+			assert.Equal(t, tc.expectedKey, conn.key)
+		})
+	}
+}
+
+func TestGetRegionForBucket(t *testing.T) {
+	testCases := []struct {
+		desc           string
+		bucketName     string
+		mockConstraint s3Types.BucketLocationConstraint
+		mockError      error
+		expectedRegion string
+		expectedError  string
+	}{
+		{
+			desc:           "RegionFound",
+			bucketName:     "test-bucket",
+			mockConstraint: s3Types.BucketLocationConstraint("us-west-1"),
+			expectedRegion: "us-west-1",
+		},
+		{
+			desc:           "DefaultRegion",
+			bucketName:     "test-bucket",
+			mockConstraint: "",
+			expectedRegion: "us-east-1",
+		},
+		{
+			desc:          "Error",
+			bucketName:    "test-bucket",
+			mockError:     errors.New("access denied"),
+			expectedError: "failed to get location for bucket 'test-bucket', access denied",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockHandler := NewMocks3Handler(ctrl)
+
+			expectedParams := &s3.GetBucketLocationInput{
+				Bucket: aws.String(tc.bucketName),
+			}
+
+			if tc.mockError != nil {
+				mockHandler.EXPECT().
+					GetBucketLocation(gomock.Any(), expectedParams).
+					Return(&s3.GetBucketLocationOutput{}, tc.mockError)
+			} else {
+				mockHandler.EXPECT().
+					GetBucketLocation(gomock.Any(), expectedParams).
+					Return(&s3.GetBucketLocationOutput{LocationConstraint: tc.mockConstraint}, nil)
+			}
+
+			region, err := getRegionForBucket(context.Background(), mockHandler, tc.bucketName)
+
+			if tc.expectedError != "" {
+				assert.Error(t, err)
+				assert.EqualError(t, err, tc.expectedError)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedRegion, region)
+		})
+	}
+}
+
 func TestS3Calls(t *testing.T) {
 	testCases := []struct {
 		desc     string
