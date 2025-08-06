@@ -62,7 +62,9 @@ type Client struct {
 
 // DefaultClient is the default pathio client called by the Reader, Writer, and
 // WriteReader methods. It has S3 encryption enabled.
-var DefaultClient Pathio = &Client{}
+var DefaultClient Pathio = &Client{
+	ctx: context.Background(),
+}
 
 // NewClient creates a new client that utilizes the provided AWS config. This can
 // be leveraged to enforce more limited permissions.

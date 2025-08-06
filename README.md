@@ -26,6 +26,34 @@ import "github.com/Clever/pathio/v5"
 var err error
 ```
 
+## Initialization
+
+Initializing a new Client:
+
+```
+    ctx := context.Background()
+	// Load the default AWS configuration
+	awsConfig, err := awsV2Config.LoadDefaultConfig(ctx, awsV2Config.WithDefaultRegion("us-east-1"))
+	if err != nil {
+		log.Fatalf("failed to load AWS config: %v", err)
+	}
+	pathioClient := pathio.NewClient(ctx, &awsConfig)
+
+```
+
+Using the Default Client (Import the Package): 
+
+```
+    import (
+        "github.com/Clever/pathio/v5"
+    )
+```
+
+```
+    pathioClient := pathio.DefaultClient
+    arcReader, err := pathioClient.Reader(wd.Input.Archive)
+```
+
 ### ListFiles
 
 ```
