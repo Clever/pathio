@@ -26,7 +26,7 @@ import "github.com/Clever/pathio/v5"
 var err error
 ```
 
-### Initialization
+## Initialization
 
 Initializing a new Client:
 
