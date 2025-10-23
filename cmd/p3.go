@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/kingpin/v2"
 	awsV2Config "github.com/aws/aws-sdk-go-v2/config"
@@ -37,6 +38,9 @@ var (
 	writeCommand = kingpin.Command("write", "copy contents of a string to a file")
 	contents     = writeCommand.Arg("contents", "string to write to a file").Required().String()
 	toPath       = writeCommand.Arg("destination_path", "the local file path or S3 path to be written to").Required().String()
+
+	presignedURLCommand = kingpin.Command("presigned-url", "generate a presigned URL for an S3 path")
+	presignedURLPath    = presignedURLCommand.Arg("path", "S3 path to generate a presigned URL for").Required().String()
 )
 
 func newPathioClientWithS3() *pathio.Client {
@@ -74,6 +78,9 @@ func main() {
 	// Pathio's Write
 	case writeCommand.FullCommand():
 		writeCommandFn()
+	// Pathio's GeneratePresignedURL
+	case presignedURLCommand.FullCommand():
+		presignedURLCommandFn()
 	default:
 		log.Fatalf("unknown command: %s", command)
 	}
@@ -178,4 +185,14 @@ func writeCommandFn() {
 		log.Fatalf("error checking if file exists: %s", err)
 	}
 	fmt.Printf("Wrote contents to: %s\n", *toPath)
+}
+
+func presignedURLCommandFn() {
+	client := newPathioClientWithS3()
+
+	presignedURL, err := client.GeneratePresignedURL(*presignedURLPath, 1*time.Hour)
+	if err != nil {
+		log.Fatalf("error generating presigned URL: %s", err)
+	}
+	fmt.Printf("Presigned URL: %s\n", presignedURL)
 }

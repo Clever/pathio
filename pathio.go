@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsV2Config "github.com/aws/aws-sdk-go-v2/config"
@@ -43,6 +44,7 @@ type Pathio interface {
 	Delete(path string) error
 	ListFiles(path string) ([]string, error)
 	Exists(path string) (bool, error)
+	GeneratePresignedURL(path string, expiration time.Duration) (string, error)
 }
 
 // Client is the pathio client used to access the local file system and S3.
@@ -105,6 +107,11 @@ func Exists(path string) (bool, error) {
 	return DefaultClient.Exists(path)
 }
 
+// GeneratePresignedURL calls DefaultClient's GeneratePresignedURL method.
+func GeneratePresignedURL(path string, expiration time.Duration) (string, error) {
+	return DefaultClient.GeneratePresignedURL(path, expiration)
+}
+
 // S3API defines the interfaces that pathio needs for AWS access.
 type S3API interface {
 	GetBucketLocation(ctx context.Context, params *s3.GetBucketLocationInput, optFns ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error)
@@ -127,6 +134,7 @@ type s3Handler interface {
 	// ListAllObjects will construct and use a ListObjectsV2 Paginator to fetch all results based on the supplied ListObjectsV2Input
 	ListAllObjects(ctx context.Context, input *s3.ListObjectsV2Input) ([]*s3.ListObjectsV2Output, error)
 	HeadObject(ctx context.Context, input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
+	GeneratePresignedURL(ctx context.Context, bucket, key string, expiration time.Duration) (string, error)
 }
 
 type s3Connection struct {
@@ -210,6 +218,20 @@ func (c *Client) Exists(path string) (bool, error) {
 		return existsS3(c.ctx, s3Conn)
 	}
 	return existsLocal(path)
+}
+
+// GeneratePresignedURL generates a pre-signed URL for the specified S3 object.
+// The path must be an S3 path (s3://bucket/key). The expiration time determines
+// how long the URL will be valid.
+func (c *Client) GeneratePresignedURL(path string, expiration time.Duration) (string, error) {
+	if strings.HasPrefix(path, "s3://") {
+		s3Conn, err := c.s3ConnectionInformation(path, c.Region)
+		if err != nil {
+			return "", err
+		}
+		return generatePresignedS3URL(c.ctx, s3Conn, expiration)
+	}
+	return "", fmt.Errorf("path is not an S3 path (s3://bucket/key), got: %s", path)
 }
 
 func existsS3(ctx context.Context, s3Conn s3Connection) (bool, error) {
@@ -331,6 +353,11 @@ func deleteS3Object(ctx context.Context, s3Conn s3Connection) error {
 	return err
 }
 
+// generatePresignedS3URL generates a pre-signed URL for the specified S3 object
+func generatePresignedS3URL(ctx context.Context, s3Conn s3Connection, expiration time.Duration) (string, error) {
+	return s3Conn.handler.GeneratePresignedURL(ctx, s3Conn.bucket, s3Conn.key, expiration)
+}
+
 // writeToLocalFile writes the given file locally
 func writeToLocalFile(path string, input io.ReadSeeker) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -396,6 +423,8 @@ func getRegionForBucket(ctx context.Context, svc s3Handler, name string) (string
 
 type liveS3Handler struct {
 	liveS3 S3API
+	// Store the full S3 client for presigned URL generation
+	s3Client *s3.Client
 }
 
 func (m *liveS3Handler) GetBucketLocation(ctx context.Context, input *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
@@ -440,13 +469,35 @@ func (m *liveS3Handler) HeadObject(ctx context.Context, input *s3.HeadObjectInpu
 	return m.liveS3.HeadObject(ctx, input)
 }
 
+func (m *liveS3Handler) GeneratePresignedURL(ctx context.Context, bucket, key string, expiration time.Duration) (string, error) {
+	if m.s3Client == nil {
+		return "", fmt.Errorf("S3 client not available for presigned URL generation")
+	}
+
+	presignClient := s3.NewPresignClient(m.s3Client)
+
+	request, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = expiration
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return request.URL, nil
+}
+
 func (c *Client) newS3Handler(ctx context.Context, region string) *liveS3Handler {
 	if c.providedConfig != nil {
+		s3Client := s3.NewFromConfig(*c.providedConfig, func(o *s3.Options) {
+			o.Region = region
+			o.UsePathStyle = true
+		})
 		return &liveS3Handler{
-			liveS3: s3.NewFromConfig(*c.providedConfig, func(o *s3.Options) {
-				o.Region = region
-				o.UsePathStyle = true
-			}),
+			liveS3:   s3Client,
+			s3Client: s3Client,
 		}
 	}
 
@@ -455,5 +506,9 @@ func (c *Client) newS3Handler(ctx context.Context, region string) *liveS3Handler
 		log.Fatalf("aws v2 config error: %s", err.Error())
 	}
 
-	return &liveS3Handler{s3.NewFromConfig(awsConfig)}
+	s3Client := s3.NewFromConfig(awsConfig)
+	return &liveS3Handler{
+		liveS3:   s3Client,
+		s3Client: s3Client,
+	}
 }

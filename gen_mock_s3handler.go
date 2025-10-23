@@ -8,6 +8,7 @@ import (
 	context "context"
 	io "io"
 	reflect "reflect"
+	time "time"
 
 	s3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	gomock "github.com/golang/mock/gomock"
@@ -63,6 +64,21 @@ func (m *MockPathio) Exists(path string) (bool, error) {
 func (mr *MockPathioMockRecorder) Exists(path interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPathio)(nil).Exists), path)
+}
+
+// GeneratePresignedURL mocks base method.
+func (m *MockPathio) GeneratePresignedURL(path string, expiration time.Duration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GeneratePresignedURL", path, expiration)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GeneratePresignedURL indicates an expected call of GeneratePresignedURL.
+func (mr *MockPathioMockRecorder) GeneratePresignedURL(path, expiration interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GeneratePresignedURL", reflect.TypeOf((*MockPathio)(nil).GeneratePresignedURL), path, expiration)
 }
 
 // ListFiles mocks base method.
@@ -382,6 +398,21 @@ func (m *Mocks3Handler) DeleteObject(ctx context.Context, input *s3.DeleteObject
 func (mr *Mocks3HandlerMockRecorder) DeleteObject(ctx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*Mocks3Handler)(nil).DeleteObject), ctx, input)
+}
+
+// GeneratePresignedURL mocks base method.
+func (m *Mocks3Handler) GeneratePresignedURL(ctx context.Context, bucket, key string, expiration time.Duration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GeneratePresignedURL", ctx, bucket, key, expiration)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GeneratePresignedURL indicates an expected call of GeneratePresignedURL.
+func (mr *Mocks3HandlerMockRecorder) GeneratePresignedURL(ctx, bucket, key, expiration interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GeneratePresignedURL", reflect.TypeOf((*Mocks3Handler)(nil).GeneratePresignedURL), ctx, bucket, key, expiration)
 }
 
 // GetBucketLocation mocks base method.

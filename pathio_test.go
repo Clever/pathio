@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -370,6 +372,167 @@ func TestS3Calls(t *testing.T) {
 			svc := NewMocks3Handler(c)
 			spec.testCase(svc, t)
 			c.Finish()
+		})
+	}
+}
+
+func TestGeneratePresignedURLE2E(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		path          string
+		expiration    time.Duration
+		expectedError string
+		mockURL       string
+		mockError     error
+		setupMocks    func(*Mocks3Handler, string, string, time.Duration)
+	}{
+		{
+			desc:       "ValidS3PathSuccess",
+			path:       "s3://test-bucket/path/to/file.txt",
+			expiration: 1 * time.Hour,
+			mockURL:    "https://test-bucket.s3.amazonaws.com/path/to/file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+			setupMocks: func(mock *Mocks3Handler, bucket, key string, expiration time.Duration) {
+				mock.EXPECT().
+					GeneratePresignedURL(gomock.Any(), bucket, key, expiration).
+					Return("https://test-bucket.s3.amazonaws.com/path/to/file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...", nil)
+			},
+		},
+		{
+			desc:          "InvalidPath",
+			path:          "/local/path/file.txt",
+			expiration:    1 * time.Hour,
+			expectedError: "path is not an S3 path (s3://bucket/key), got: /local/path/file.txt",
+		},
+		{
+			desc:          "InvalidS3Path",
+			path:          "s3://invalid",
+			expiration:    1 * time.Hour,
+			expectedError: "invalid s3 path s3://invalid",
+		},
+		{
+			desc:       "S3HandlerError",
+			path:       "s3://test-bucket/path/to/file.txt",
+			expiration: 1 * time.Hour,
+			mockError:  errors.New("access denied"),
+			setupMocks: func(mock *Mocks3Handler, bucket, key string, expiration time.Duration) {
+				mock.EXPECT().
+					GeneratePresignedURL(gomock.Any(), bucket, key, expiration).
+					Return("", errors.New("access denied"))
+			},
+		},
+		{
+			desc:       "ShortExpiration",
+			path:       "s3://test-bucket/path/to/file.txt",
+			expiration: 5 * time.Minute,
+			mockURL:    "https://test-bucket.s3.amazonaws.com/path/to/file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+			setupMocks: func(mock *Mocks3Handler, bucket, key string, expiration time.Duration) {
+				mock.EXPECT().
+					GeneratePresignedURL(gomock.Any(), bucket, key, expiration).
+					Return("https://test-bucket.s3.amazonaws.com/path/to/file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...", nil)
+			},
+		},
+		{
+			desc:       "LongExpiration",
+			path:       "s3://test-bucket/path/to/file.txt",
+			expiration: 7 * 24 * time.Hour, // 7 days
+			mockURL:    "https://test-bucket.s3.amazonaws.com/path/to/file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+			setupMocks: func(mock *Mocks3Handler, bucket, key string, expiration time.Duration) {
+				mock.EXPECT().
+					GeneratePresignedURL(gomock.Any(), bucket, key, expiration).
+					Return("https://test-bucket.s3.amazonaws.com/path/to/file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...", nil)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockHandler := NewMocks3Handler(ctrl)
+			client := &Client{
+				ctx: context.Background(),
+			}
+
+			if strings.HasPrefix(tc.path, "s3://") && tc.expectedError == "" {
+				// Parse the S3 path to get bucket and key
+				bucket, key, err := parseS3Path(tc.path)
+				if err != nil {
+					assert.Error(t, err)
+					assert.Contains(t, err.Error(), tc.expectedError)
+					return
+				}
+
+				// Set up mock generation of presigned URL
+				if tc.setupMocks != nil {
+					tc.setupMocks(mockHandler, bucket, key, tc.expiration)
+				}
+
+				// Create s3Connection with our mock
+				s3Conn := s3Connection{
+					handler: mockHandler,
+					bucket:  bucket,
+					key:     key,
+				}
+
+				// Call the generatePresignedS3URL function
+				url, err := generatePresignedS3URL(context.Background(), s3Conn, tc.expiration)
+
+				if tc.mockError != nil {
+					assert.Error(t, err)
+					assert.EqualError(t, err, tc.mockError.Error())
+					assert.Empty(t, url)
+					return
+				}
+
+				assert.NoError(t, err)
+				assert.Equal(t, tc.mockURL, url)
+			} else {
+				// Handling non-S3 paths
+				url, err := client.GeneratePresignedURL(tc.path, tc.expiration)
+
+				if tc.expectedError != "" {
+					assert.Error(t, err)
+					assert.Contains(t, err.Error(), tc.expectedError)
+					assert.Empty(t, url)
+					return
+				}
+
+				assert.NoError(t, err)
+				assert.NotEmpty(t, url)
+			}
+		})
+	}
+}
+
+func TestPackageLevelGeneratePresignedURLE2E(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		path          string
+		expiration    time.Duration
+		expectedError string
+	}{
+		{
+			desc:          "InvalidPath",
+			path:          "/local/path/file.txt",
+			expiration:    1 * time.Hour,
+			expectedError: "path is not an S3 path (s3://bucket/key), got: /local/path/file.txt",
+		},
+		{
+			desc:          "InvalidS3Path",
+			path:          "s3://invalid",
+			expiration:    1 * time.Hour,
+			expectedError: "invalid s3 path s3://invalid",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			url, err := GeneratePresignedURL(tc.path, tc.expiration)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectedError)
+			assert.Empty(t, url)
 		})
 	}
 }
