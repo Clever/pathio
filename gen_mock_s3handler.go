@@ -66,6 +66,21 @@ func (mr *MockPathioMockRecorder) Exists(path interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPathio)(nil).Exists), path)
 }
 
+// GeneratePresignedURL mocks base method.
+func (m *MockPathio) GeneratePresignedURL(path string, expiration time.Duration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GeneratePresignedURL", path, expiration)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GeneratePresignedURL indicates an expected call of GeneratePresignedURL.
+func (mr *MockPathioMockRecorder) GeneratePresignedURL(path, expiration interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GeneratePresignedURL", reflect.TypeOf((*MockPathio)(nil).GeneratePresignedURL), path, expiration)
+}
+
 // ListFiles mocks base method.
 func (m *MockPathio) ListFiles(path string) ([]string, error) {
 	m.ctrl.T.Helper()
